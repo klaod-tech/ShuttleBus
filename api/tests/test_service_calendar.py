@@ -15,7 +15,7 @@ from app.calendar.service import (
 )
 from app.models.calendar import ScheduledTrip, ScheduledTripStop, ServiceCalendar, TripVehicle
 from app.models.reference import RouteStop, Stop, TripTemplate
-from app.seed import route_id, route_stop_id, sid, stop_id, template_id, version_id
+from app.seed import route_id, route_stop_id, sid, template_id, version_id
 from app.timetable.source_2026_2 import ROUTES
 
 ALL_ROUTES = [route_id(code) for code in ROUTES]

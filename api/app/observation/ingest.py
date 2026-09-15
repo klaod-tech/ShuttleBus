@@ -17,7 +17,7 @@ from app.errors import AppError, not_found
 from app.models.calendar import ScheduledTrip, ScheduledTripStop, TripVehicle
 from app.models.observation import ClockCheck, CollectionSession, LocationEvent, ObservationReview
 from app.models.reference import RouteStop, Stop
-from app.observation.rules import TRANSITION_RANK, EventView, progress_sequence
+from app.observation.rules import EventView, progress_sequence
 
 
 # ---------- 공통 ----------

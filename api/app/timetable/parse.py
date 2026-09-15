@@ -97,15 +97,18 @@ def _vehicle_counts(day_type: str, row: SourceRow) -> dict[str, int]:
 
 
 def parse_row(table: SourceTable, row: SourceRow) -> TripDef:
+    if len(row.cells) != len(table.columns):
+        # 칸 수가 어긋나면 zip이 조용히 잘라 엉뚱한 정거장에 시각이 붙는다. 적재를 멈춘다
+        raise ValueError(f"{table.route} {table.day_type} 순{row.trip_no}: 칸 {len(row.cells)}개, 열 {len(table.columns)}개")
     kinds = classify_cells(row.cells)
     table_pattern = pattern_def(table.route, table.pattern)
     issues = [
         f"{col.label} 칸 X가 시각 사이에 있음 — 미방문. 별도 패턴 등록 필요"
-        for col, kind in zip(table.columns, kinds)
+        for col, kind in zip(table.columns, kinds, strict=True)
         if kind == "not_visited"
     ] + [
         f"{col.label} 칸 X를 판별할 수 없음"
-        for col, kind in zip(table.columns, kinds)
+        for col, kind in zip(table.columns, kinds, strict=True)
         if kind == "unresolved"
     ]
 
@@ -118,7 +121,7 @@ def parse_row(table: SourceTable, row: SourceRow) -> TripDef:
         origin_seq = pattern.stops.index(remark.stop) + 1
         times.append(StopTime(origin_seq, "departure", remark.time))
 
-    for col, kind, raw in zip(table.columns, kinds, row.cells):
+    for col, kind, raw in zip(table.columns, kinds, row.cells, strict=True):
         if kind != "time":
             continue
         stop_name = table_pattern.stops[col.pattern_seq - 1]
@@ -149,7 +152,7 @@ def parse_row(table: SourceTable, row: SourceRow) -> TripDef:
     source_cells = {
         "columns": [
             {"label": col.label, "raw": raw, "interpretation": kind}
-            for col, raw, kind in zip(table.columns, row.cells, kinds)
+            for col, raw, kind in zip(table.columns, row.cells, kinds, strict=True)
         ],
         "friday": None if table.day_type != "weekday" else ("○" if row.friday_runs else "✕"),
         "remark": remark.raw if remark else None,

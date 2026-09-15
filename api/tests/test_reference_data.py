@@ -244,3 +244,18 @@ def test_fr_in_02_seed_idempotent(db):
 def test_route_ids_are_stable():
     assert route_id("cheonan") == route_id("cheonan")
     assert route_id("cheonan") != route_id("terminal")
+
+
+def test_row_with_wrong_cell_count_stops_loading():
+    """칸 수가 열 수와 다르면 zip이 조용히 잘라 시각이 다른 정거장에 붙는다 (2026-09-15 검토)."""
+    import dataclasses
+
+    import pytest
+
+    from app.timetable.parse import parse_row
+    from app.timetable.source_2026_2 import TABLES
+
+    table = TABLES[0]
+    broken = dataclasses.replace(table.rows[0], cells=table.rows[0].cells[:-1])
+    with pytest.raises(ValueError):
+        parse_row(table, broken)

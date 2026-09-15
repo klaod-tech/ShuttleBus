@@ -84,13 +84,13 @@ def current_principal(
         # 시험에서 시각을 고정할 수 있도록 exp는 서버 시각 의존성으로 직접 검사한다
         claims = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"], options={"verify_exp": False})
     except jwt.PyJWTError:
-        raise AppError(401, "AUTH_REQUIRED", "로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.")
+        raise AppError(401, "AUTH_REQUIRED", "로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.") from None
     if not isinstance(claims.get("exp"), (int, float)) or claims["exp"] <= now.timestamp():
         raise AppError(401, "AUTH_REQUIRED", "로그인이 만료되었습니다. 다시 로그인해 주세요. 전송 대기 기록은 유지됩니다.")
     try:
         account_id = uuid.UUID(str(claims["sub"]))
     except (KeyError, ValueError):
-        raise AppError(401, "AUTH_REQUIRED", "로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.")
+        raise AppError(401, "AUTH_REQUIRED", "로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.") from None
     account = session.get(StaffAccount, account_id)
     if account is None or not account.is_active:
         raise AppError(401, "AUTH_REQUIRED", "사용할 수 없는 계정입니다.")
