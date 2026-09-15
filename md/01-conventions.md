@@ -235,9 +235,10 @@
 | `observation_grace_seconds` | 통과 기록이 오래됐는가 | 시험값 | `08` |
 | `auto_promote_enabled` | 통계 스냅샷을 자동 활성화할 것인가 | 최초 기본 참, 롤백 시 false·명시 재개 | `08`·`14` |
 | `arrived_freshness_seconds` | arrived를 추천해도 되는가 | 시험값 | `11` |
-| `realtime_input_window_seconds` | 실시간 입력인가 지연 보충인가 | **미정** → 역행을 `needs_review` | `02` |
-| `clock_skew_tolerance_seconds` | 단말 시계를 믿을 수 있는가 | **미정** → `needs_review` | `02` |
-| `pending_input_retention_hours` | 지연 입력을 채택할 것인가 | **미정** → `needs_review` | `02` |
+| `realtime_input_window_seconds` | 실시간 입력인가 지연 보충인가 | 시험값 (비우면 역행을 `needs_review`) | `02` |
+| `clock_skew_tolerance_seconds` | 단말 시계를 믿을 수 있는가 | 시험값 (비우면 `needs_review`) | `02` |
+| `clock_check_valid_seconds` | 시계 확인 근거가 유효한 범위 | 시험값 (비우면 `needs_review`) | `02` |
+| `pending_input_retention_hours` | 지연 입력을 채택할 것인가 | 시험값 (비우면 `needs_review`) | `02` |
 | `session_review_grace_seconds` | 기록을 검토해야 하는가 | 실측 후 확정 | `13` |
 | `max_skip_stops` | 한 번에 건너뛸 수 있는 방문 수 | 시험값 | `06` |
 | `refresh_after_seconds` | 후보를 다시 조회할 때인가 | 시험값 | `11` |

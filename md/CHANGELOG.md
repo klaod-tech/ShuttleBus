@@ -33,7 +33,7 @@
 | `06` | `writer_instance_id` 발급·재전송 규칙, 시계 확인 경로, 계정 CLI |
 | `15` | `staff_accounts`(①)·`idempotency_records`(⑤) 등재, `departure_observation_event_id` FK 미설정 이유 |
 
-**설정 미정 상태의 동작:** `clock_skew_tolerance_seconds`·`clock_check_valid_seconds`·`pending_input_retention_hours`·`realtime_input_window_seconds`가 문서대로 미정이라, 지금 입력하는 수동 관측은 **전부 `needs_review`로 보관**된다. 실측 전에 시험값을 정하거나 P3 2부의 관리자 검토 경로로 승인해야 공개 상태에 반영된다 (`06` 11장).
+**설정 시험값 (2026-09-15 사용자 승인):** `clock_skew_tolerance_seconds` 5초·`clock_check_valid_seconds` 6시간·`pending_input_retention_hours` 24시간·`realtime_input_window_seconds` 120초. 시계 확인을 거친 실시간 입력은 바로 `valid`로 공개 상태에 반영된다. 값을 비우면 이전처럼 전부 `needs_review`로 보관된다 (`01` 7장, `02` 12장).
 
 ## 구현 중 드러난 모순 — 해소
 

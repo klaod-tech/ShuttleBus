@@ -16,11 +16,12 @@ class Settings(BaseSettings):
     # 06 3장 — 시험값
     max_skip_stops: int = 3
 
-    # 02 6·12장 — 미정. None이면 문서의 보수적 처리(검토 대기 보관)를 따른다
-    realtime_input_window_seconds: int | None = None
-    clock_skew_tolerance_seconds: float | None = None
-    pending_input_retention_hours: float | None = None
-    clock_check_valid_seconds: int | None = None
+    # 02 6·12장 — 시험값 (2026-09-15 사용자 승인). 실측 후 교체.
+    # 환경변수로 비우면(None) 문서의 보수적 처리(검토 대기 보관)를 따른다
+    realtime_input_window_seconds: int | None = 120
+    clock_skew_tolerance_seconds: float | None = 5.0
+    pending_input_retention_hours: float | None = 24.0
+    clock_check_valid_seconds: int | None = 6 * 3600
 
 
 settings = Settings()

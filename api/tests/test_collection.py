@@ -249,8 +249,11 @@ def test_valid_observation_updates_public_state(client, trip1, set_now, trusted_
     assert s["state_version"] == trip1["state"]["state_version"] + 1
 
 
-def test_unset_settings_store_needs_review(client, trip1, set_now):
+def test_unset_settings_store_needs_review(client, trip1, set_now, monkeypatch):
     """시계·보관 설정이 미정이면 거절하지 않고 검토 대기로 보관한다 (02 6·12장)."""
+    for name in ("clock_skew_tolerance_seconds", "clock_check_valid_seconds",
+                 "pending_input_retention_hours", "realtime_input_window_seconds"):
+        monkeypatch.setattr(settings, name, None)
     kim = Collector(client, "kim")
     kim.start(trip1["vehicle"])
     set_now(2026, 9, 14, 8, 5)

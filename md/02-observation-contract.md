@@ -219,7 +219,7 @@ Phase 2 초기에는 두 기록을 **일부러 모두 남겨** 판별 정확도�
 
 수집 기간·보관 허용기간은 별도 조건이다. 종료 후 도착한 기록도 발생 시각이 유효 수집 기간 안이면 검토·채택할 수 있다. 수신이 늦었다는 이유만으로 현재 위치를 뒤로 이동시키거나 종료된 세션을 재개하지 않는다.
 
-**시각 교환 방법 (구현 확정):** NTP 방식 네 시각을 쓴다. ① 단말이 송신 시각 t0를 보내면(`POST /collection-sessions/{id}/clock-checks`) 서버가 수신 t1·응답 t2를 기록해 돌려주고, ② 단말이 수신 시각 t3를 보내면(`POST /clock-checks/{id}/complete`) 서버가 `estimated_offset_seconds = ((t0−t1)+(t3−t2))/2`(단말 − 서버), `uncertainty_seconds = ((t3−t0)−(t2−t1))/2`를 계산한다. 서버 시각 둘을 서버가 보관하므로 단말 보고만으로 검증되지 않는다. 관측 발생 시각이 `checked_at ± clock_check_valid_seconds` 안이어야 근거로 인정한다. `clock_skew_tolerance_seconds`와 `clock_check_valid_seconds`는 여전히 미정이며 미정이면 `clock_unverified`로 검토 대기다.
+**시각 교환 방법 (구현 확정):** NTP 방식 네 시각을 쓴다. ① 단말이 송신 시각 t0를 보내면(`POST /collection-sessions/{id}/clock-checks`) 서버가 수신 t1·응답 t2를 기록해 돌려주고, ② 단말이 수신 시각 t3를 보내면(`POST /clock-checks/{id}/complete`) 서버가 `estimated_offset_seconds = ((t0−t1)+(t3−t2))/2`(단말 − 서버), `uncertainty_seconds = ((t3−t0)−(t2−t1))/2`를 계산한다. 서버 시각 둘을 서버가 보관하므로 단말 보고만으로 검증되지 않는다. 관측 발생 시각이 `checked_at ± clock_check_valid_seconds` 안이어야 근거로 인정한다. **시험값 (2026-09-15 승인, 실측 후 교체):** `clock_skew_tolerance_seconds` 5초, `clock_check_valid_seconds` 6시간, `pending_input_retention_hours` 24시간, `realtime_input_window_seconds` 120초. 값을 비우면 `clock_unverified` 등으로 검토 대기다.
 
 ### `review_reason` 값
 
