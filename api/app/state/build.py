@@ -76,7 +76,7 @@ def build_trip_state(bundle: TripBundle, calendar: Resolution, now: datetime) ->
                 vehicle_slot=v.vehicle_slot,
                 shuttle_id=v.shuttle_id,
                 operation_status=v.operation_status,
-                cancellation_reason=None,
+                cancellation_reason=bundle.cancellation_reason if v.operation_status == "cancelled" else None,
                 information_status=info_status,
                 last_observation=observation_out(bundle, last),
                 # Phase 1은 좌표 수집이 없다 (03 4장)
@@ -97,7 +97,7 @@ def build_trip_state(bundle: TripBundle, calendar: Resolution, now: datetime) ->
         schedule_status=calendar.schedule_status,
         schedule_reason=calendar.reason,
         operation_status=trip.operation_status,
-        cancellation_reason=None,
+        cancellation_reason=bundle.cancellation_reason if trip.operation_status == "cancelled" else None,
         scheduled_vehicle_count=trip.scheduled_vehicle_count,
         tracked_vehicle_count=tracked_vehicle_count(bundle, now),
         stops=[stop_out(v) for v in bundle.visits],

@@ -241,13 +241,8 @@ def submit_observation(
         elif data.event_type == "passed" and "arrived" in types or data.event_type == "arrived" and ({"passed", "departed"} & set(types)):
             review.append("conflicting_event_types")
 
-        if not review and (last_seq is None or target_seq > last_seq):
-            base = last_seq if last_seq is not None else (start_seq - 1 if start_seq is not None else _origin_seq(trip, stops) - 1)
-            observed_visits = {e.trip_stop_id for e in events if e.validation_status == "valid"}
-            skip_ids = [
-                tid for tid, seq in sorted(seq_of.items(), key=lambda kv: kv[1])
-                if base < seq < target_seq and tid not in observed_visits
-            ]
+        if not review:
+            skip_ids = gap_visits(trip, sess, stops, events, last_seq, target_seq)
             if len(skip_ids) > settings.max_skip_stops and not data.confirm_skip:
                 raise AppError(
                     409,
@@ -294,33 +289,9 @@ def submit_observation(
 
     result = ObservationResult(event, session=sess, trip=trip)
     if status == "valid":
-        # 지연 도착한 실측이 자동 누락을 대체한다 (02 7장)
-        for e in events:
-            if e.trip_stop_id == data.trip_stop_id and e.event_type == "skipped" and e.validation_status == "valid":
-                e.validation_status, e.cancelled_at, e.cancel_reason = "cancelled", now, "superseded_by_observation"
-                result.superseded.append(e)
-        session.flush()
-        for tid in skip_ids if not review else []:
-            skipped = LocationEvent(
-                event_id=uuid.uuid4(),
-                collection_session_id=session_id,
-                trip_vehicle_id=vehicle.trip_vehicle_id,
-                trip_stop_id=tid,
-                event_type="skipped",
-                occurred_at=None,
-                time_confidence="inferred",
-                received_at=received_at,
-                source="system",
-                client_event_id=f"system:{event.event_id}:{tid}",
-                client_sequence=None,
-                validation_status="valid",
-                parent_event_id=event.event_id,
-            )
-            session.add(skipped)
-            result.skipped.append(skipped)
-        if data.event_type == "departed" and data.trip_stop_id == trip.origin_trip_stop_id:
-            vehicle.departure_observation_event_id = event.event_id
-        refresh_vehicle_information(session, vehicle)
+        result.superseded, result.skipped = make_public(
+            session, event, sess, trip, vehicle, stops, events, skip_ids, now, f"system:{event.event_id}"
+        )
         trip.state_version += 1
 
     sess.input_version += 1
@@ -330,6 +301,75 @@ def submit_observation(
 
 def _origin_seq(trip: ScheduledTrip, stops: dict) -> int:
     return stops[trip.origin_trip_stop_id][0].stop_sequence
+
+
+def gap_visits(
+    trip: ScheduledTrip, sess: CollectionSession, stops: dict, events: list[LocationEvent], last_seq: int | None, target_seq: int
+) -> list[uuid.UUID]:
+    """마지막 진행 지점(없으면 수집 시작·기점 직전)과 목표 사이에서 관측이 없는 방문 — 자동 누락 대상 (02 7장)."""
+    if last_seq is not None and target_seq <= last_seq:
+        return []
+    seq_of = {tid: ts.stop_sequence for tid, (ts, _) in stops.items()}
+    if last_seq is not None:
+        base = last_seq
+    elif sess.collection_start_trip_stop_id is not None:
+        base = seq_of[sess.collection_start_trip_stop_id] - 1
+    else:
+        base = _origin_seq(trip, stops) - 1
+    observed = {e.trip_stop_id for e in events if e.validation_status == "valid"}
+    return [tid for tid, seq in sorted(seq_of.items(), key=lambda kv: kv[1]) if base < seq < target_seq and tid not in observed]
+
+
+def make_public(
+    session: Session,
+    event: LocationEvent,
+    sess: CollectionSession,
+    trip: ScheduledTrip,
+    vehicle: TripVehicle,
+    stops: dict,
+    events: list[LocationEvent],
+    skip_ids: list[uuid.UUID],
+    now: datetime,
+    skip_prefix: str,
+) -> tuple[list[LocationEvent], list[LocationEvent]]:
+    """유효가 된 관측의 파생 효과. 입력·검토 승인·복구가 같은 경로를 쓴다.
+
+    지연 실측의 누락 대체 (02 7장) → 사이 방문 자동 누락 → 기점 출발 연결 → 정보 상태 → 종점 자동 완료 (13 3장).
+    state_version·input_version·control_version 증가는 호출자가 정한다.
+    """
+    from app.operations.completion import auto_complete_on_terminal
+
+    superseded: list[LocationEvent] = []
+    for e in events:
+        if e.event_id != event.event_id and e.trip_stop_id == event.trip_stop_id and e.event_type == "skipped" and e.validation_status == "valid":
+            e.validation_status, e.cancelled_at, e.cancel_reason = "cancelled", now, "superseded_by_observation"
+            superseded.append(e)
+    session.flush()
+    skipped: list[LocationEvent] = []
+    for tid in skip_ids:
+        row = LocationEvent(
+            event_id=uuid.uuid4(),
+            collection_session_id=sess.collection_session_id,
+            trip_vehicle_id=vehicle.trip_vehicle_id,
+            trip_stop_id=tid,
+            event_type="skipped",
+            occurred_at=None,
+            time_confidence="inferred",
+            received_at=now,
+            source="system",
+            client_event_id=f"{skip_prefix}:{tid}",
+            client_sequence=None,
+            validation_status="valid",
+            parent_event_id=event.event_id,
+        )
+        session.add(row)
+        skipped.append(row)
+    if event.event_type == "departed" and event.trip_stop_id == trip.origin_trip_stop_id:
+        vehicle.departure_observation_event_id = event.event_id
+    session.flush()
+    refresh_vehicle_information(session, vehicle)
+    auto_complete_on_terminal(session, trip, vehicle, event, stops, now)
+    return superseded, skipped
 
 
 def _clock_reason(session: Session, sess: CollectionSession, data: ObservationInput) -> str | None:
@@ -373,7 +413,9 @@ def cancel_observation(
     session.refresh(event)
     session.refresh(sess)
 
-    _check_owner(sess, principal, None)
+    # 관리자는 대체 관측 정리 등을 위해 다른 입력자의 기록도 취소할 수 있다 (13 15장)
+    if principal.role != "admin":
+        _check_owner(sess, principal, None)
     if event.source == "system":
         raise AppError(422, "VALIDATION_ERROR", "자동으로 만든 누락 기록은 직접 취소할 수 없습니다. 근거 기록을 취소해 주세요.")
     _check_input_version(sess, expected_input_version)

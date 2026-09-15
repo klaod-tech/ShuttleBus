@@ -275,6 +275,8 @@ Idempotency-Key와 관리자 권한을 검증한다. 회차 잠금 아래 대상
 
 `operation_decisions(decision_id, trip_id, trip_vehicle_id, decision_type, evidence_type, evidence_event_id, note, observed_completed_at, decided_by, decided_at, supersedes_decision_id, control_version)`에 완료·취소·정정 이력을 남긴다. 이벤트 근거의 취소는 review_required를 올리고 기존 완료를 즉시 해제하지 않는다.
 
+**구현 확정 (2026-09-15):** `decision_type`은 `complete`(차량 완료) / `cancel_trip`(회차 취소, 차량 없음, 사유는 `note`) / `keep_completed` / `reopen`이다. `decided_by = null`은 서버 자동 완료다. 완료 재검토 필요 여부는 별도 열에 저장하지 않고 **대체되지 않은 최근 완료 결정의 `evidence_event_id`가 더 이상 `valid`가 아닌지**로 파생한다. 관리자 수집 기록 목록의 `completion_review_required`로 보인다.
+
 `POST /api/v1/admin/trip-vehicles/{trip_vehicle_id}/completion-review`는 `decision=keep_completed|reopen`, 대체 근거 또는 사유, expected_control_version을 받는다. keep_completed는 새 근거를 요구한다. reopen은 관리자가 실제 완료 오판을 확인한 경우만 허용하고 취소 회차에는 적용하지 않는다. 이전 결정은 보존하고 상태·control_version·state_version·outbox를 함께 확정한다. 단순히 오래된 기록을 정리하려고 다시 운행 중으로 만들지 않는다.
 
 | ID | 사례 | 기대 결과 |
@@ -289,6 +291,26 @@ Idempotency-Key와 관리자 권한을 검증한다. 회차 잠금 아래 대상
 | FR-OP-21 | `signal_lost`로 GPS 세션 종료 | 완료 미발생, 운행 상태 불변 |
 
 03의 표시 우선순위에 따라 완료 차량은 ‘이번 운행 종료’를 표시한다. 과거 arrived 기록 때문에 출발 미확인으로 되돌아가지 않는다.
+
+## 운영 구현 메모 (P3 2부, 2026-09-15)
+
+설계에 명시되지 않아 구현에서 정한 것이다. 다르면 이 절과 `app/operations`를 함께 고친다.
+
+| 항목 | 결정 |
+|---|---|
+| 자동 완료와 `control_version` | 종점 실측으로 인한 자동 완료는 관측 입력 경로이므로 `control_version`을 올리지 않는다 (FR-OP-09). `state_version`만 오르고 결정 행에는 당시 `control_version`을 기록한다 |
+| 자동 완료 적용 범위 | 수동 입력의 종점 유효 실측(arrived·passed, observed·interpolated)과, 승인·복구로 유효가 된 종점 관측. GPS 판별 결과의 자동 완료는 10장대로 P6 비교 지표 이후 |
+| 관리자의 `terminal_observation` 선택 | `evidence_event_id`로 그 차량의 종점 유효 실측을 지정해야 한다. `observed_completed_at`은 그 관측 시각 |
+| 회차 취소와 완료 슬롯 | 이미 완료된 슬롯은 `completed`로 둔다(실제 운행 사실). 나머지 슬롯이 `cancelled`, 회차는 `cancelled`. 이미 완료·취소된 회차의 취소는 `OPERATION_STATE_CONFLICT` |
+| 차량 슬롯 개별 취소 | API 없음. 모든 슬롯이 취소면 회차가 `cancelled`라는 집계 규칙만 둔다 (FR-OP-14) |
+| `reopen` 후 상태 | 차량 `scheduled`. 회차가 completed였다면 예정·운행 상태로 되돌린다 |
+| 검토 승인의 재확인 | 한 방문 한 유효 관측(`REVIEW_CONFLICT`), 같은 방문 도착·통과 공존 금지(`REVIEW_CONFLICT`), 다른 유효 관측과 시각 순서(`EVENT_ORDER_CONFLICT`). 시계·보관 사유는 관리자가 근거(`evidence_note` 필수)로 넘는다 |
+| 승인·복구의 파생 | 입력 경로와 같은 함수로 누락 대체·자동 누락 생성·기점 출발 연결·자동 완료를 적용한다. 복구 시 파생 `skipped`는 새 행으로 다시 계산한다 |
+| 버전 | 검토·복구는 `input_version`·`control_version`·`state_version`을 모두 올린다 |
+| 관리자 취소 | 관리자는 다른 입력자의 관측도 `POST /events/{id}/cancel`로 취소할 수 있다 (15장 대체 관측 정리) |
+| 공지 조회 | `trip_id`를 주면 노선 전체 공지 + 그 회차 공지, 생략하면 노선의 모든 유효 공지 |
+| 검토 대상 판정 | `python -m app.jobs mark-sessions-for-review`. P5 `travel_times`와 `session_review_grace_seconds`가 없으면 0건 (2장) |
+| 후속 연결 | 기각·취소의 `travel_time_invalidations` 등록과 재집계 등록은 P5, outbox·`notice:changed`·`trip:state` 전송은 P4에서 같은 트랜잭션에 붙인다 |
 
 ## 15. 오취소 복구
 

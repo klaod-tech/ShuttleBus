@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.calendar import ScheduledTrip, ScheduledTripStop, TripVehicle
 from app.models.observation import CollectionSession, LocationEvent
+from app.models.operations import OperationDecision
 from app.models.reference import RoutePattern, RouteStop, RouteVersion, Stop, TripTemplate
 from app.observation.rules import EventView
 
@@ -36,6 +37,8 @@ class TripBundle:
     # 차량별 유효 관측(skipped 포함)과 수집 시작 방문 순번 (중간 탑승)
     events: dict[uuid.UUID, list[EventView]] = field(default_factory=dict)
     collection_start_seq: dict[uuid.UUID, int] = field(default_factory=dict)
+    # 명시 회차 취소 사유 (13 4장). 차량 슬롯 취소는 회차 취소에서만 생기므로 같은 사유를 쓴다
+    cancellation_reason: str | None = None
 
     def visit_index(self, trip_stop_id) -> int:
         return next(i for i, v in enumerate(self.visits) if v.trip_stop.trip_stop_id == trip_stop_id)
@@ -99,4 +102,10 @@ def load_trip_bundles(session: Session, trip_ids: list[uuid.UUID]) -> dict[uuid.
             bundle = vehicle_trip[s.trip_vehicle_id]
             seq = seq_of[s.collection_start_trip_stop_id]
             bundle.collection_start_seq[s.trip_vehicle_id] = min(seq, bundle.collection_start_seq.get(s.trip_vehicle_id, seq))
+    for d in session.scalars(
+        select(OperationDecision)
+        .where(OperationDecision.scheduled_trip_id.in_(trip_ids), OperationDecision.decision_type == "cancel_trip")
+        .order_by(OperationDecision.decided_at)
+    ):
+        bundles[d.scheduled_trip_id].cancellation_reason = d.note
     return bundles

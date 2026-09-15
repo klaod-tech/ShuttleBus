@@ -201,7 +201,7 @@ service_calendar (available?)
 | `location_events` | 취소는 `validation_status = cancelled`. 행은 남는다 | `02` 9장 |
 | `eta_predictions` | 근거가 취소돼도 이력은 남고 별도 분류한다 | `08` 7장 |
 | `service_calendar` | 과거 날짜의 판정 결과를 보존한다 | `05` 3장 |
-| `operation_decisions` | 이전 결정은 `supersedes_decision_id`로 이어 붙인다 | `13` 14장 |
+| `operation_decisions` | 이전 결정은 `supersedes_decision_id`로 이어 붙인다. `decided_by = null`은 서버 자동 완료 | `13` 14장 |
 | `travel_times` | 덮지 않고 새 `stats_model_version` 행을 만든다. 직전 활성 스냅샷은 롤백용으로 반드시 남긴다 | `09` 4·9장 |
 | `travel_time_invalidations` | 지우지 않는다. 오취소를 복구해도 과거 차단은 남는다 | `09` 10장 |
 | `model_decisions` | 덮지 않고 결정마다 행을 추가한다 | `08` 11장 |

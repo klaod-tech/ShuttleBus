@@ -23,5 +23,8 @@ class Settings(BaseSettings):
     pending_input_retention_hours: float | None = 24.0
     clock_check_valid_seconds: int | None = 6 * 3600
 
+    # 13 10장 — 실측 후 확정. None이면 검토 대상 판정을 하지 않는다
+    session_review_grace_seconds: int | None = None
+
 
 settings = Settings()

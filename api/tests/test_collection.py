@@ -374,16 +374,19 @@ def test_same_visit_conflicts_go_to_review(client, trip1, set_now, trusted_setti
     assert early.json()["event"]["review_reason"] == "departed_before_arrived"
 
 
-def test_terminal_arrival_is_event_confirmed(client, trip1, set_now, trusted_settings):
+def test_terminal_arrival_completes_vehicle(client, trip1, set_now, trusted_settings):
+    """종점 유효 실측은 완료 근거다 (13 3장 FR-OP-18). 완료 차량은 '이번 운행 종료'가 우선한다 (03 6장)."""
     kim = Collector(client, "kim")
     kim.start(trip1["vehicle"])
     clock = kim.clock(set_now, at(4))
     kim.observe(trip1["stops"][0], "departed", at(5), clock=clock)
+    before = trip_state(client, 1)["control_version"]
     kim.observe(trip1["stops"][4], "arrived", at(40), clock=clock, confirm_skip=True)
     set_now(2026, 9, 14, 8, 41)
-    terminal = trip_state(client, 1)["vehicles"][0]["visits"][4]
-    assert terminal["unavailable_reason"] == "event_confirmed"
-    assert terminal["basis_observation"]["event_type"] == "arrived"
+    state = trip_state(client, 1)
+    assert state["vehicles"][0]["operation_status"] == "completed" and state["operation_status"] == "completed"
+    assert state["vehicles"][0]["visits"][4]["unavailable_reason"] == "trip_completed"
+    assert state["control_version"] == before  # 관측 입력은 control_version을 올리지 않는다 (FR-OP-09)
 
 
 def test_clock_skew_and_offset(client, trip1, set_now, trusted_settings):

@@ -164,6 +164,7 @@
 | `VALIDATION_ERROR` | 422 | 필수 입력 누락·형식 오류·소속이 맞지 않는 ID 조합 (예: 날짜 없는 정거장 조회) | false | `01` |
 | `REVIEW_CONFLICT` | 409 | 검토 대상 상태 변경 또는 대표 관측 충돌 | false | `13` |
 | `RESTORE_CONFLICT` | 409 | 복구하면 한 방문에 유효 관측이 둘이 됨 | false | `13` |
+| `OPERATION_STATE_CONFLICT` | 409 | 이미 완료·취소된 차량·회차에 완료·취소 요청, 완료되지 않은 차량의 완료 재검토 | false | `13` |
 | `CLOCK_EVIDENCE_INVALID` | 422 | 시계 검증 근거 형식·소속 불일치 | false | `02` |
 | `CACHE_REBUILDING` | 503 | 캐시 복원 중 | true | `12` |
 
@@ -201,6 +202,8 @@
 | `exception_type` | no_service / alternate_schedule | `schedule_exceptions` | `05` |
 | `coverage_status` | confirmed_service / confirmed_no_service / unknown | `schedule_route_coverage` | `05` |
 | `notice_type` | delay / cancel / info | `notices` | `13` |
+| `operation_decisions.decision_type` | complete / cancel_trip / keep_completed / reopen | `operation_decisions` | `13` |
+| `operation_decisions.evidence_type` | terminal_observation / collector_report / operator_notice / admin_judgement | `operation_decisions` | `13` |
 | `verification_status` | verified / needs_interpretation / unverified | 여러 곳 | `04` |
 | `end_reason` | reassigned / terminal_departed / signal_lost / service_day_closed | `collection_sessions` | `07` |
 | `observation_reviews.decision` | cancel / approve / reject / restore. cancel은 입력자 취소 이력 (02 v7.8) | `observation_reviews` | `13` |

@@ -35,6 +35,16 @@
 
 **설정 시험값 (2026-09-15 사용자 승인):** `clock_skew_tolerance_seconds` 5초·`clock_check_valid_seconds` 6시간·`pending_input_retention_hours` 24시간·`realtime_input_window_seconds` 120초. 시계 확인을 거친 실시간 입력은 바로 `valid`로 공개 상태에 반영된다. 값을 비우면 이전처럼 전부 `needs_review`로 보관된다 (`01` 7장, `02` 12장).
 
+## P3 2부 구현으로 정한 것
+
+| 문서 | 내용 |
+|---|---|
+| `01` | 오류 코드 `OPERATION_STATE_CONFLICT`, `decision_type`·`evidence_type` 값 |
+| `13` | `decision_type` 값, 완료 재검토 필요 여부 파생 규칙, '운영 구현 메모' 절 (자동 완료와 `control_version`, 취소 시 완료 슬롯, 승인 재확인 항목, 공지 조회 범위, 관리자 취소) |
+| `15` | `operation_decisions.decided_by = null` 의미 |
+
+**구현 범위:** 마이그레이션 0004(`notices`·`operation_decisions`), 차량 완료·종점 실측 자동 완료, 회차 취소(사유가 회차 상태에 표시), 관측 승인·기각, 오취소 복구, 완료 재검토, 공지 생성·조기 만료·학생 조회, 관리자 수집 기록 목록·전체 이력, 검토 대상 판정 배치. FR-OP-01~26 중 화면 문구(03)는 UI 단계, 전송 수신(10)은 P4, GPS 세션(21)은 P6, 통계 차단(25)은 P5에서 확인한다.
+
 ## 구현 중 드러난 모순 — 해소
 
 `04` 11장이 외부 정거장 열 시각을 `unspecified`로 두어, `11` FR-BC-19 규칙상 **캠퍼스 기점 회차의 천안아산역 승차가 전부 확인 필요·`sort_at = null`**이 되고 FR-BC-01(온양 순2 08:45 → 순3 08:50)도 성립하지 않았다. 사용자가 **외부 정거장 열 = 도착 시각(기점이면 출발)**으로 확인해 `04` 5장 '열의 의미'를 추가하고 11장 미확정 행을 지웠다. FR-BC-01이 설계대로 통과한다.
