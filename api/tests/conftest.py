@@ -35,6 +35,15 @@ def reset_schema(url: str) -> None:
     engine.dispose()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _no_background_workers():
+    """시험 중에는 실제 DB를 보는 백그라운드 전송·만료 작업을 돌리지 않는다. 필요한 시험이 직접 호출한다."""
+    from app.config import settings
+
+    settings.realtime_workers = False
+    yield
+
+
 @pytest.fixture(scope="session")
 def engine():
     reset_schema(TEST_DATABASE_URL)
@@ -77,13 +86,13 @@ def set_now(client):
     """서버 시각 고정: set_now(2026, 9, 14, 7, 0) — 서울 기준."""
     from datetime import datetime
 
-    from app.clock import get_now
-    from app.main import app
+    from app.clock import set_fixed_now
     from app.timeutil import SEOUL
 
     def _set(*parts):
         moment = datetime(*parts, tzinfo=SEOUL)
-        app.dependency_overrides[get_now] = lambda: moment
+        set_fixed_now(moment)
         return moment
 
-    return _set
+    yield _set
+    set_fixed_now(None)

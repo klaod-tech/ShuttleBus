@@ -18,6 +18,7 @@ from app.models.calendar import ScheduledTrip, ScheduledTripStop, TripVehicle
 from app.models.observation import ClockCheck, CollectionSession, LocationEvent, ObservationReview
 from app.models.reference import RouteStop, Stop
 from app.observation.rules import EventView, progress_sequence
+from app.realtime.state import commit_trip_state
 
 
 # ---------- 공통 ----------
@@ -305,6 +306,7 @@ def submit_observation(
 
     sess.input_version += 1
     session.flush()
+    commit_trip_state(session, trip, now)
     return result
 
 
@@ -449,6 +451,7 @@ def cancel_observation(
     if was_public:
         trip.state_version += 1
     session.flush()
+    commit_trip_state(session, trip, now)
     return CancelResult(event, cascaded, sess, trip)
 
 

@@ -12,6 +12,7 @@
 | P2 화면 | 미착수 — `md_frontend` 방침에 따라 도안·정거장별 조회 계약 확정 후 | — |
 | P3 서버 (1부) | 로그인·계정, 수집 세션, 관측 입력(02 유효성·자동 누락·지연 보충), 취소, 수집 종료, 시계 확인, 멱등 키. 관측이 회차 상태·후보에 반영 | FR-MC-01·02·05·06·09~13·16, FR-OB-01~03·05·06·08~11 |
 | P3 서버 (2부) | 차량 완료(종점 실측 자동 완료 포함), 회차 취소, 관측 승인·기각, 오취소 복구, 완료 재검토, 공지, 관리자 수집 기록 조회, 검토 대상 판정 배치 | FR-OP-01·02·04~09·11~20·22~24·26 (03은 화면, 10은 상태 버전까지, 21은 P6 GPS, 25는 P5) |
+| P4 실시간 | 상태 확정 스냅샷·outbox·Socket.IO(`/socket.io`)·Redis 캐시 복원, 시간 경과 상태 확정 작업. Docker에서 전달 0.2~0.3초, Redis 초기화 후 복원 확인 | FR-RT-03·04·07·08·09·11·12·14~18 (01·02·05·06·13·19·20은 화면) |
 | P4~ | 미착수 | — |
 
 미뤄 둔 현장 확인·측정 작업은 [개선사항 — 사용자 확인 대기](md/IMPROVEMENTS.md)에 모아 두었다. 그 자료 없이도 개발은 계속되며, 채워지면 '확인 필요' 표시가 정상 정보로 바뀐다.
@@ -30,13 +31,13 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m app.jobs ensure-trips --days 14      # 회차 보충 생성
 .\.venv\Scripts\python.exe -m app.jobs mark-sessions-for-review   # 검토 대상 판정 (P5 전에는 0건)
 .\.venv\Scripts\python.exe -m app.accounts create --username kim --role collector  # 입력자 계정 (비밀번호 프롬프트)
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload        # http://127.0.0.1:8000/docs
+.\.venv\Scripts\python.exe -m uvicorn app.main:asgi --reload       # http://127.0.0.1:8000/docs · Socket.IO /socket.io
 ```
 
 ## Docker로 실행
 
 ```powershell
-docker compose up --build   # postgres → migrate(마이그레이션·시드·회차 보충) → api:8000
+docker compose up --build   # postgres·redis → migrate(마이그레이션·시드·회차 보충) → api:8000 (REST + Socket.IO)
 ```
 
 2026-09-15 Docker 29.8 / Compose v5.5에서 기동 확인 (FR-IN-01). 재기동해도 시드·회차 생성이 중복되지 않는다. API 문서: http://127.0.0.1:8000/docs
@@ -51,13 +52,14 @@ api/
   app/state/         03 회차 상태 — 방문 상태·예측 판정, 응답 조립
   app/candidates/    11 탑승 후보 — classify.py(순수 함수) · service.py
   app/observation/   02·06 관측 수집 — rules.py(진행 규칙) · ingest.py(세션·입력·취소·종료·시계)
+  app/realtime/      12 실시간 — state.py(상태 확정·서명) · outbox.py · cache.py(Redis) · server.py(Socket.IO·작업)
   app/operations/    13 운영 — completion.py(완료·회차 상태 집계) · service.py(완료·취소·검토·복구·공지·검토 대상)
   app/auth.py        로그인 토큰·비밀번호 해시 · app/idempotency.py 멱등 키 · app/accounts.py 계정 CLI
   app/api/           /api/v1/routes · /service-calendar · /routes/{id}/stops · /scheduled-trips · /scheduled-trips/{id}/state
                      collection.py 입력자 (06) · admin.py 관리자 /admin/* 와 학생 /notices (13)
   app/seed.py        멱등 시드
   app/jobs.py        회차 보충 · 검토 대상 판정 배치
-  alembic/versions/  0001 ⓪①층 · 0002 ②층 · 0003 ③층·계정·멱등 · 0004 ⑤층 공지·운영 결정
+  alembic/versions/  0001 ⓪①층 · 0002 ②층 · 0003 ③층·계정·멱등 · 0004 ⑤층 공지·운영 결정 · 0005 ⑤층 스냅샷·outbox
   tests/
 scripts/dev-db.ps1   휴대용 PostgreSQL
 ```

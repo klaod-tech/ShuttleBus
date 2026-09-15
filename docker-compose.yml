@@ -1,4 +1,4 @@
-# 14 2장 1단계 구성. web은 md_frontend 방침에 따라 화면 도안·서버 계약 확정 후 추가한다.
+# 14 2장 2단계 구성(postgres·redis·api). 실시간 전송은 MVP 단일 백엔드라 api에 포함 (12 6장). web은 md_frontend 방침에 따라 화면 도안·서버 계약 확정 후 추가한다.
 # 기동: docker compose up --build
 services:
   postgres:
@@ -14,6 +14,15 @@ services:
       - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d shuttlebus"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # 상태 캐시·Socket.IO 인스턴스 간 전달. 기준 데이터가 아니다 — 지워도 DB에서 복원된다 (12 5장)
+  redis:
+    image: redis:8
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -36,11 +45,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
       # production이면 기본·짧은 JWT_SECRET으로 기동하지 않는다
       APP_ENV: ${APP_ENV:-development}
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:

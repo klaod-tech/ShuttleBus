@@ -1,4 +1,4 @@
-from app.models import calendar, observation, operations, reference  # noqa: F401  메타데이터 등록
+from app.models import calendar, observation, operations, realtime, reference  # noqa: F401  메타데이터 등록
 from app.models.base import Base
 
 # 15 1장의 층. FR-DM-01 검사와 마이그레이션 순서가 이 표를 따른다
@@ -32,6 +32,8 @@ LAYERS: dict[str, int] = {
     "idempotency_records": 5,
     "notices": 5,
     "operation_decisions": 5,
+    "trip_state_snapshots": 5,
+    "outbox_events": 5,
 }
 
 __all__ = ["Base", "LAYERS"]

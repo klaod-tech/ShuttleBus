@@ -33,6 +33,8 @@ from app.observation.ingest import (
 )
 from app.observation.rules import EventView, progress_sequence
 from app.operations.completion import FINAL, active_completion, recompute_trip_status
+from app.realtime.outbox import enqueue
+from app.realtime.state import commit_trip_state
 
 # ---------- 공통 ----------
 
@@ -144,6 +146,7 @@ def complete_trip_vehicle(
     )
     session.add(decision)
     session.flush()
+    commit_trip_state(session, trip, now)
     return DecisionResult(decision, trip, [vehicle])
 
 
@@ -179,6 +182,7 @@ def cancel_scheduled_trip(
     session.flush()
     recompute_trip_status(session, trip)
     session.flush()
+    commit_trip_state(session, trip, now)
     return DecisionResult(decision, trip, vehicles)
 
 
@@ -306,6 +310,7 @@ def review_observation(
     sess.input_version += 1
     _bump_control(trip)
     review = _record_review(session, event, decision, "needs_review", reason, evidence_note, principal, now, sess, trip)
+    commit_trip_state(session, trip, now)
     return ReviewResult(event, review, sess, trip, skipped, superseded)
 
 
@@ -353,6 +358,7 @@ def restore_observation(
     sess.input_version += 1
     _bump_control(trip)
     review = _record_review(session, event, "restore", "cancelled", reason, evidence_note, principal, now, sess, trip)
+    commit_trip_state(session, trip, now)
     return ReviewResult(event, review, sess, trip, skipped, superseded)
 
 
@@ -410,6 +416,7 @@ def review_completion(
     )
     session.add(row)
     session.flush()
+    commit_trip_state(session, trip, now)
     return DecisionResult(row, trip, [vehicle])
 
 
@@ -453,6 +460,7 @@ def create_notice(
     )
     session.add(notice)
     session.flush()
+    _notice_changed(session, notice, now)
     return notice
 
 
@@ -463,7 +471,15 @@ def expire_notice(session: Session, notice_id: uuid.UUID, now: datetime) -> Noti
     if notice.expired_early_at is None and notice.expires_at > now:
         notice.expired_early_at = now
         session.flush()
+        _notice_changed(session, notice, now)
     return notice
+
+
+def _notice_changed(session: Session, notice: Notice, now: datetime) -> None:
+    """회차 공지는 회차 룸, 노선 공지는 노선 룸 (12 2장 전송 범위, FR-RT-04)."""
+    trip_id = notice.scheduled_trip_id
+    room = f"trip:{trip_id}" if trip_id else f"route:{notice.route_id}"
+    enqueue(session, "notice:changed", room, {"route_id": str(notice.route_id), "trip_id": str(trip_id) if trip_id else None}, now)
 
 
 def active_notices(session: Session, route_id: uuid.UUID, trip_id: uuid.UUID | None, now: datetime) -> list[Notice]:

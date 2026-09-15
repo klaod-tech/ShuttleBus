@@ -3,7 +3,7 @@
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -37,7 +37,8 @@ from app.models.reference import (
     Stop,
     TripTemplate,
 )
-from app.timeutil import SEOUL, combine_seoul, today_seoul
+from app.clock import get_now
+from app.timeutil import combine_seoul, today_seoul
 
 TIME_COLUMN = {
     "arrival": "scheduled_arrival_at",
@@ -107,7 +108,7 @@ def resolve_service_calendar(
         actual_weekday=res.actual_weekday,
         effective_service_weekday=res.effective_service_weekday,
         effective_day_type=res.effective_day_type,
-        resolved_at=datetime.now(tz=SEOUL),
+        resolved_at=get_now(),
     )
     stmt = stmt.on_conflict_do_update(
         index_elements=["service_date", "route_id"],
@@ -119,6 +120,15 @@ def resolve_service_calendar(
     session.execute(stmt)
     if existing is not None:
         session.expire(existing)
+        # 이미 공개한 날짜 판정이 바뀌었다. 학생 화면이 날짜 상태·후보를 다시 읽게 한다 (12 2장).
+        # 같은 변경으로 candidates:changed를 함께 보내지 않도록 기록해 둔다 (FR-RT-18)
+        from app.realtime.outbox import enqueue
+
+        enqueue(
+            session, "schedule:changed", f"route:{route_id}",
+            {"route_id": str(route_id), "service_date": str(service_date)}, get_now(),
+        )
+        session.info.setdefault("schedule_changed", set()).add((route_id, service_date))
     return res
 
 
@@ -175,6 +185,7 @@ def ensure_scheduled_trips(
         existing_templates = set(
             session.scalars(select(ScheduledTrip.trip_template_id).where(ScheduledTrip.service_date == d))
         )
+        created_here = []
         for summary in running_trips(summaries, weekday):
             if summary.trip_template_id in existing_templates:
                 continue
@@ -183,15 +194,26 @@ def ensure_scheduled_trips(
                 report.data_errors.append(f"{d} {summary.trip_template_id}: vehicle_count_by_weekday[{weekday}]")
                 continue
             tt = session.get(TripTemplate, summary.trip_template_id)
-            if _create_trip(session, tt, d, count, stop_status):
+            if (created := _create_trip(session, tt, d, count, stop_status)) is not None:
                 report.created_trips += 1
+                created_here.append(created)
+        # 이미 회차가 있던 날짜에 회차가 추가되면(보충·개정) 후보를 다시 읽게 한다 (FR-RT-17).
+        # 처음 생성은 변경이 아니고, 날짜 판정이 바뀐 경우는 schedule:changed가 담당한다
+        if created_here and existing_templates and (route_id, d) not in session.info.get("schedule_changed", set()):
+            from app.realtime.outbox import enqueue
+
+            enqueue(
+                session, "candidates:changed", f"route:{route_id}",
+                {"route_id": str(route_id), "service_date": str(d), "affected_trip_ids": [str(t) for t in created_here]},
+                get_now(),
+            )
     session.flush()
     return report
 
 
 def _create_trip(
     session: Session, tt: TripTemplate, service_date: date, vehicles: int, stop_status: dict[uuid.UUID, str]
-) -> bool:
+) -> uuid.UUID | None:
     inserted = session.execute(
         insert(ScheduledTrip)
         .values(
@@ -209,7 +231,7 @@ def _create_trip(
         .returning(ScheduledTrip.scheduled_trip_id)
     ).scalar_one_or_none()
     if inserted is None:
-        return False
+        return None
 
     route_stops = session.scalars(
         select(RouteStop).where(RouteStop.route_version_id == tt.route_version_id).order_by(RouteStop.stop_sequence)
@@ -254,7 +276,7 @@ def _create_trip(
     )
     for slot in range(1, vehicles + 1):
         session.add(TripVehicle(scheduled_trip_id=inserted, vehicle_slot=slot))
-    return True
+    return inserted
 
 
 def find_next_service_date(

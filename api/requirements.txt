@@ -6,3 +6,5 @@ psycopg[binary]==3.3.5
 pydantic-settings>=2.6
 tzdata>=2025.2
 PyJWT==2.14.0
+python-socketio==5.17.0
+redis==8.1.0

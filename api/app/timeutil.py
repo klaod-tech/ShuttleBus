@@ -13,7 +13,10 @@ MAX_SERVICE_DATE = date(2100, 12, 31)
 
 
 def today_seoul(now: datetime | None = None) -> date:
-    now = now or datetime.now(tz=SEOUL)
+    if now is None:
+        from app.clock import get_now
+
+        now = get_now()
     return now.astimezone(SEOUL).date()
 
 

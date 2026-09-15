@@ -123,7 +123,7 @@ flowchart LR
 | ③ | `device_positions`, `device_route_assignments` | `07` |
 | ④ | `time_bands`, `prediction_models`, `prediction_path_edges`, `eta_predictions`, `model_decisions` | `08` |
 | ④ | `travel_times`, `travel_time_invalidations` | `09` |
-| ⑤ | `trip_state_snapshots`, outbox | `12` |
+| ⑤ | `trip_state_snapshots`(회차당 최신 1행), `outbox_events` | `12` |
 | ⑤ | `notices`, `observation_reviews`, `operation_decisions` | `13` |
 | ⑤ | `idempotency_records` — 변경 요청 재전송 판정 | `01` |
 

@@ -41,12 +41,10 @@ def advance_clock_to(moment: datetime) -> None:
 
     열린 세션은 수신 시각 이후의 발생 시각을 수집 기간 밖으로 본다 (02 6장).
     """
-    from app.clock import get_now
-    from app.main import app
+    from app import clock
 
-    current = app.dependency_overrides.get(get_now)
-    if current is not None and current() < moment:
-        app.dependency_overrides[get_now] = lambda: moment
+    if clock._fixed is not None and clock._fixed < moment:
+        clock.set_fixed_now(moment)
 
 
 class Collector:

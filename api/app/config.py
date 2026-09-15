@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     # 13 10장 — 실측 후 확정. None이면 검토 대상 판정을 하지 않는다
     session_review_grace_seconds: int | None = None
 
+    # 12 실시간 전송. REDIS_URL이 없으면 캐시 없이 DB 스냅샷을 읽고 Socket.IO는 단일 프로세스로 돈다
+    redis_url: str | None = None
+    realtime_workers: bool = True  # outbox 전송·상태 만료 확정 작업을 이 프로세스에서 돌릴지
+    outbox_poll_seconds: float = 0.3  # NFR-01 2초 안 전달을 위한 전송 주기
+    state_refresh_seconds: float = 30.0  # 시간 경과로 바뀐 상태를 확정하는 주기 (11 refresh_after_seconds와 맞춤)
+    socket_cors_origins: list[str] = []  # 화면 배포 주소가 정해지면 설정 (md_frontend/must_do.md S2)
+
     # development / production. production이면 기동 시 비밀값을 검사한다
     app_env: str = "development"
 

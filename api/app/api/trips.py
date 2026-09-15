@@ -13,9 +13,11 @@ from app.clock import get_now
 from app.db import get_session
 from app.errors import check_service_date, invalid, not_found
 from app.models.calendar import ScheduledTrip
+from app.models.realtime import TripStateSnapshot
 from app.models.reference import Route, Stop
 from app.seed import route_id as seed_route_id
-from app.state.build import build_trip_state
+from app.realtime.cache import get_cache
+from app.realtime.state import compute_live_states, content, is_current, lock_and_commit
 from app.state.bundle import load_trip_bundles
 from app.state.schemas import StopOut, TripStateOut, VisitOut
 from app.timetable.parse import student_union_applies
@@ -189,10 +191,26 @@ def get_trip_state(
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
 ):
+    """확정된 상태 버전만 돌려준다 (12 10장). 같은 버전 번호로 다른 내용을 돌려주지 않는다.
+
+    캐시(같은 버전·같은 내용) → DB 스냅샷 → 내용이 달라졌으면(시간 경과) 잠금 뒤 새 버전 확정.
+    """
     trip = session.get(ScheduledTrip, trip_id)
     if trip is None:
         raise not_found("회차")
-    bundle = load_trip_bundles(session, [trip_id])[trip_id]
-    calendar = resolve_service_calendar(session, bundle.route_id, trip.service_date)
+    server_time = now.astimezone(SEOUL)
+    live = compute_live_states(session, [trip_id], now)[trip_id]
+    cache = get_cache()
+    cached = cache.get(trip_id)
+    if cached is not None and cached[0] == trip.state_version and content(cached[1]) == content(live.payload):
+        session.commit()
+        return {**cached[1], "server_time": server_time}
+    snapshot = session.get(TripStateSnapshot, trip_id)
+    if is_current(snapshot, live, trip):
+        # 캐시 누락·뒤처짐은 DB 확정 스냅샷을 복사해 복구한다. 새 버전을 만들지 않는다 (FR-RT-07·09)
+        cache.put(trip_id, snapshot.state_version, snapshot.payload)
+        session.commit()
+        return {**snapshot.payload, "server_time": server_time}
+    result = lock_and_commit(session, trip_id, now)
     session.commit()
-    return build_trip_state(bundle, calendar, now)
+    return {**result.payload, "server_time": server_time}

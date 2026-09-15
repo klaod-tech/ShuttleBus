@@ -227,6 +227,25 @@ MVP는 단일 백엔드로 시작하고 단계적으로 분리한다 (`14`).
 | `syncTripState` | tripId → 스냅샷·이벤트 병합 |
 | `applyTripState` | 상태 → 더 새 버전만 적용 |
 
+## 구현 메모 (P4, 2026-09-15)
+
+설계에 없던 부분을 구현에서 정했다. 다르면 이 절과 `app/realtime`을 함께 고친다.
+
+| 항목 | 결정 |
+|---|---|
+| 구성 | MVP 단일 백엔드. Socket.IO(`python-socketio`)를 API 프로세스에 붙인다 (`uvicorn app.main:asgi`, 경로 `/socket.io`). outbox 전송·상태 만료 확정 작업도 같은 프로세스(`REALTIME_WORKERS`). 인스턴스를 늘리면 `REDIS_URL`로 Redis 매니저가 룸을 잇고 outbox는 `SKIP LOCKED`+임대 기한으로 나눈다 |
+| 스냅샷 | `trip_state_snapshots`는 **회차마다 최신 한 행**. 버전별 이력은 저장 비용 때문에 두지 않는다. 과거 사실은 관측·결정 이력이 보존한다 |
+| 확정 함수 | `commit_trip_state` — 회차 잠금 아래 지금 계산한 내용이 스냅샷과 다를 때만 새 버전·스냅샷·outbox를 한 트랜잭션에 넣는다. 관측 입력·취소·검토·복구·완료·취소·재검토가 모두 부른다 |
+| 시간 경과 | 30초 주기(`STATE_REFRESH_SECONDS`)로 어제·오늘 회차를 다시 계산해 바뀐 것만 확정한다(`expire_predictions` 역할). `/state` 조회도 내용이 달라졌으면 그 자리에서 확정한다 |
+| `candidates:changed` 판정 | 방문마다 '이 방문에서 탄다면'의 분류 결과(제외·추천·확인 필요·사유)와 하차 정책을 서명으로 저장하고, 서명이 바뀔 때만 발행한다. 예상 시각 숫자는 서명에 없다. 첫 스냅샷은 변경이 아니다 |
+| 회차 추가 | 이미 회차가 있던 날짜에 회차가 더 생기면 `candidates:changed`. 처음 생성은 발행하지 않는다. 날짜 판정이 바뀐 경우 `schedule:changed`만 보낸다 (FR-RT-18) |
+| 전송 | 적재 순서대로 보낸다. 실패는 30초 임대 기한 뒤 재시도. 보낸 기록은 하루 뒤 삭제 |
+| 캐시 | Redis 해시 `shuttlebus:trip_state:{trip_id}`. Lua로 더 새 버전만 쓴다. 누락·장애 시 DB 스냅샷을 읽고 다시 채운다. 복원 중 503은 쓰지 않는다(항상 DB 응답, 5장 두 방식 중 첫째) |
+| 구독 응답 | `{ok, trip_id}` 또는 `{ok: false, code}`(`VALIDATION_ERROR`·`RESOURCE_NOT_FOUND`). 인증 없음(학생 공개 정보) |
+| 서버 시각 | `app/clock.get_now` 한 곳에서만 읽는다. 달력의 '과거 날짜 보존' 판단도 같은 시각을 쓴다 |
+
+실측 (Docker, 2026-09-15): 공지 생성 → `notice:changed` 0.17초, 회차 취소 → `trip:state`·`candidates:changed` 0.29초 (NFR-01 2초). Redis `FLUSHALL` 뒤 `/state`가 같은 버전으로 응답하고 캐시가 다시 채워짐 (FR-RT-07·09).
+
 ## 9. 검증 기준
 
 | ID | 요구사항 | 확인 방법 |
