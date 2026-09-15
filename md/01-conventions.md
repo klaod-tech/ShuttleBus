@@ -126,7 +126,7 @@
 
 - 기본 경로 `/api/v1`
 - JSON 필드와 DB 열은 `snake_case`, TypeScript 변수·함수는 `camelCase`
-- 변경 요청에는 `Idempotency-Key`를 사용한다
+- 변경 요청에는 `Idempotency-Key`를 사용한다. 없으면 422. 키는 계정별로 `idempotency_records`에 요청과 같은 트랜잭션으로 저장하고, 성공 응답만 기록한다. 시계 확인 두 요청은 매번 새 측정이므로 키를 요구하지 않는다
 - 관리자·입력자는 `Authorization: Bearer {access_token}`으로 인증하고 역할을 검증한다
 - **입력자 토큰 수명은 24시간**이다. 왕복 운행 중 만료를 피하기 위함이며 MVP에는 refresh 토큰을 두지 않는다. 만료 2시간 전부터 재로그인을 안내한다. 재로그인해도 로컬 대기 입력 ID는 유지한다.
 - 단말 인증은 별도 토큰·차량 배정이며 발급·회수는 Phase 2에서 설계한다 (`07-gps-detection`)
@@ -158,6 +158,9 @@
 | `SESSION_OWNERSHIP_CONFLICT` | 409 | 다른 입력자가 점유한 세션. 자동 인계 금지 | false | `06` |
 | `SKIP_LIMIT_EXCEEDED` | 409 | `max_skip_stops` 초과. `confirm_skip=true`로 재요청 | false | `06` |
 | `RESOURCE_NOT_FOUND` | 404 | 실제 노선·회차·세션 ID 없음 | false | `01` |
+| `AUTH_REQUIRED` | 401 | 토큰 없음·만료·잘못된 로그인. 화면은 재로그인 안내, 대기 큐 유지 | false | `01` |
+| `FORBIDDEN` | 403 | 역할이 맞지 않음, 다른 입력자의 세션 조회 | false | `01` |
+| `EVENT_ALREADY_CANCELLED` | 409 | 이미 취소된 기록의 재취소. 되돌리려면 13 복구 | false | `02` |
 | `VALIDATION_ERROR` | 422 | 필수 입력 누락·형식 오류·소속이 맞지 않는 ID 조합 (예: 날짜 없는 정거장 조회) | false | `01` |
 | `REVIEW_CONFLICT` | 409 | 검토 대상 상태 변경 또는 대표 관측 충돌 | false | `13` |
 | `RESTORE_CONFLICT` | 409 | 복구하면 한 방문에 유효 관측이 둘이 됨 | false | `13` |
@@ -200,7 +203,8 @@
 | `notice_type` | delay / cancel / info | `notices` | `13` |
 | `verification_status` | verified / needs_interpretation / unverified | 여러 곳 | `04` |
 | `end_reason` | reassigned / terminal_departed / signal_lost / service_day_closed | `collection_sessions` | `07` |
-| `observation_reviews.decision` | approve / reject / restore | `observation_reviews` | `13` |
+| `observation_reviews.decision` | cancel / approve / reject / restore. cancel은 입력자 취소 이력 (02 v7.8) | `observation_reviews` | `13` |
+| `staff_accounts.role` | collector / admin | `staff_accounts` | `06` |
 | `model_decisions.action` | promote / rollback / block / unblock / resume_auto | `model_decisions` | `08` |
 | `travel_time_invalidations.reason` | observation_cancelled / observation_rejected | `travel_time_invalidations` | `09` |
 | `connectionStatus` (로컬) | connecting / connected / disconnected | 화면 상태 | `12` |

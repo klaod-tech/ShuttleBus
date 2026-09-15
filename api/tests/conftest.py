@@ -70,3 +70,20 @@ def client(db):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def set_now(client):
+    """서버 시각 고정: set_now(2026, 9, 14, 7, 0) — 서울 기준."""
+    from datetime import datetime
+
+    from app.clock import get_now
+    from app.main import app
+    from app.timeutil import SEOUL
+
+    def _set(*parts):
+        moment = datetime(*parts, tzinfo=SEOUL)
+        app.dependency_overrides[get_now] = lambda: moment
+        return moment
+
+    return _set

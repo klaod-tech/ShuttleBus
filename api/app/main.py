@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.api.calendar import router as calendar_router
+from app.api.collection import router as collection_router
+from app.api.trips import router as trips_router
 from app.errors import install_error_handlers
 
 
@@ -13,6 +15,8 @@ class UTF8JSONResponse(JSONResponse):
 app = FastAPI(title="ShuttleBus API", version="0.1.0", default_response_class=UTF8JSONResponse)
 install_error_handlers(app)
 app.include_router(calendar_router)
+app.include_router(trips_router)
+app.include_router(collection_router)
 
 
 @app.get("/healthz")

@@ -100,8 +100,26 @@ group 0은 신선한 arrived이며 sort_at은 해당 도착 관측 시각, group
 | origin_stop_name, origin_scheduled_departure_at | 회차 기점 참고 정보. 승차 정렬 시각과 구분 |
 | priority_group, sort_at | 확인 필요는 priority_group=null, sort_at도 null 가능 |
 | sort_basis_event_type | sort_at이 어느 사건의 시각인지. departed / arrived / passed 또는 null |
-| unverified_reasons[] | 승하차 미확인·관측 만료 등 사유. 정상 후보는 빈 배열 |
+| is_same_stop_loop | 같은 물리 정거장으로 돌아오는 순환 탑승이면 true (2장) |
+| unverified_reasons[] | 확인 필요 사유. 정상 후보는 빈 배열. 값은 아래 표 |
 | scheduled_vehicle_count, tracked_vehicle_count | 예정·현재 실측 대수 |
+
+### `unverified_reasons` 값
+
+| 값 | 뜻 | 3장 |
+|---|---|---|
+| boarding_policy_unknown / alighting_policy_unknown | 승차·하차 정책 미확인 | 3 |
+| arrival_observation_stale | 도착 관측이 `arrived_freshness_seconds`를 넘김 | 5 |
+| stale_observation / prediction_expired / position_unverified / awaiting_departure | 실시간 근거 무효. 미래 공시값으로 정상 추천을 되살리지 않음 | 7 |
+| scheduled_time_passed | 의미가 확인된 공시 시각이 지남. 참고 정렬만 | 4 |
+| scheduled_event_type_unspecified | 공시 시각의 도착·출발 의미 미확정. `sort_at = null` | 4 |
+| no_scheduled_time | 승차 방문에 공시 시각이 없음(경유). `sort_at = null` | 6 |
+
+한 후보에 사유가 여럿이면 모두 싣는다. `next_known_service_date`는 추천 가능 후보가 없을 때만 계산하고 그 외에는 null이다.
+
+### 회차 목록 모드 `trips[]`
+
+`trip_id, trip_no, route_pattern_id, pattern_code, operation_status, scheduled_vehicle_count, origin_stop_name, origin_scheduled_departure_at, terminal_stop_name, terminal_scheduled_arrival_at, note, student_union_boarding`. 기점 공시 출발 순. `student_union_boarding`은 `10` 6장 판정이며 휴일·온양 노선은 확인 필요라 null이다. 시간표 메뉴(`md_frontend/01`)가 이 모드를 쓴다.
 
 ## 8. 프론트 상태
 

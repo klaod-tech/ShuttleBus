@@ -1,3 +1,46 @@
+# v7.10 변경 기록 (2026-09-15)
+
+사용자 결정 3건을 반영했다. 구현(P0·P1) 중 드러난 문서 보완도 함께 적는다.
+
+## 사용자 결정
+
+| 결정 | 반영 |
+|---|---|
+| **MVP 노선 = 천안아산역 노선** | `00` 3장, `10` 1장, `md_frontend/03` 남은 선택 |
+| **주요 외부 정거장은 승차 가능** — 시각이 공시된 천안아산역·천안역·천안터미널·주은아파트·온양온천역·아산터미널 | `04` 1장. 중간 방문은 승차·하차 모두 `allowed`. 휴일 천안역의 천안아산역 두 방문 포함. 그 밖의 경유지는 `unknown` 유지 |
+| **선문대 = 아산캠퍼스** | `04` 4·5·9·11·13장, `00`·`10`·IMPROVEMENTS 미확정 항목에서 제거. 휴일 잠정 패턴을 천안터미널 일반 패턴으로 합침 |
+
+하차 허용은 사용자가 '승차 가능'이라고만 답한 것을 확장한 해석이다. 외부역이 하교 방향의 목적지이기도 하므로 함께 열었다. 다르면 `04` 1장과 시드의 `MAJOR_EXTERNAL_STOPS` 규칙을 고친다.
+
+## 구현 중 보완
+
+| 문서 | 내용 |
+|---|---|
+| `15` | 참조 방향 규칙의 예외 ⓪→① 명시 (조사 자료가 대상 노선 버전·방문을 가리킴). `schedule_annotations` 소유 등재 |
+| `04` | 원문 칸 보존 위치 `trip_templates.source_cells` |
+| `05` | 예외 범위 열을 `route_id`(null=전체)로 확정 |
+| `01` | `VALIDATION_ERROR`(422) 등재 |
+| ROADMAP | 참조 장 번호 3곳 정정 |
+| `03` | 이벤트 없는 방문의 `upcoming`/`unknown` 기준 시각 규칙. P4 전 `state_version` 만료 미반영 한계 명시 |
+| `11` | `unverified_reasons` 값 표, `is_same_stop_loop`, 회차 목록 모드 필드 |
+
+## P3 1부 구현으로 정한 것
+
+| 문서 | 내용 |
+|---|---|
+| `01` | 오류 코드 `AUTH_REQUIRED`·`FORBIDDEN`·`EVENT_ALREADY_CANCELLED`, 결정 값 `cancel`, 멱등 키 저장 규칙 |
+| `02` | 시계 확인 NTP 네 시각 방식, `review_reason` 값 표, `superseded_by_observation` |
+| `06` | `writer_instance_id` 발급·재전송 규칙, 시계 확인 경로, 계정 CLI |
+| `15` | `staff_accounts`(①)·`idempotency_records`(⑤) 등재, `departure_observation_event_id` FK 미설정 이유 |
+
+**설정 미정 상태의 동작:** `clock_skew_tolerance_seconds`·`clock_check_valid_seconds`·`pending_input_retention_hours`·`realtime_input_window_seconds`가 문서대로 미정이라, 지금 입력하는 수동 관측은 **전부 `needs_review`로 보관**된다. 실측 전에 시험값을 정하거나 P3 2부의 관리자 검토 경로로 승인해야 공개 상태에 반영된다 (`06` 11장).
+
+## 구현 중 드러난 모순 — 해소
+
+`04` 11장이 외부 정거장 열 시각을 `unspecified`로 두어, `11` FR-BC-19 규칙상 **캠퍼스 기점 회차의 천안아산역 승차가 전부 확인 필요·`sort_at = null`**이 되고 FR-BC-01(온양 순2 08:45 → 순3 08:50)도 성립하지 않았다. 사용자가 **외부 정거장 열 = 도착 시각(기점이면 출발)**으로 확인해 `04` 5장 '열의 의미'를 추가하고 11장 미확정 행을 지웠다. FR-BC-01이 설계대로 통과한다.
+
+---
+
 # v7.9 변경 기록
 
 v7.8 최종 검증에서 나온 6건을 처리했다. **새 규칙은 없고 v7.8이 만든 참조의 도착지를 만들었다.**

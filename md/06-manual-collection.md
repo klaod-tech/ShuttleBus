@@ -136,7 +136,14 @@
 | `POST /events/{event_id}/cancel` | `reason`, `expected_input_version` | 취소 |
 | `POST /collection-sessions/{id}/end` | `ended_at`, `expected_input_version` | **수집 종료만** |
 
+| `POST /collection-sessions/{id}/clock-checks` | `device_sent_at` | 시계 확인 1단계 (02 12장) |
+| `POST /clock-checks/{id}/complete` | `device_received_at` | 시계 확인 2단계. 오차·불확실성 계산 |
+
 모든 경로 앞에 `/api/v1`이 붙는다. 변경 요청에는 `Idempotency-Key`를 쓴다.
+
+**writer_instance_id 주고받기 (구현 확정):** 새 세션은 서버가 `writer_instance_id`를 발급해 돌려준다. 앱은 로컬에 보관하고, 재시작·새로고침 때 `POST /collection-sessions`에 그 값을 실어 보내면 기존 세션을 받는다. 값이 없거나 다르면 같은 계정이어도 `SESSION_OWNERSHIP_CONFLICT`다. 관측 입력에는 항상 싣는다.
+
+**계정:** 입력자·관리자 계정은 `python -m app.accounts create --username … --role collector|admin`으로 만든다. 비밀번호는 저장소·시드에 넣지 않는다.
 
 ### 소속 검증
 

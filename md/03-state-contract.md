@@ -47,6 +47,8 @@ position_status는 위치 표시용이며 **저장하지 않고 마지막 좌표
 
 information_status와 혼동하지 않는다. **position_status는 좌표의 나이, information_status는 통과 기록의 나이**를 본다. 정거장 사이를 정상 주행하는 동안 좌표는 계속 갱신되지만 통과 기록은 구간 소요시간만큼 늙으므로, `position_status = current`이면서 `information_status = stale`인 상태가 정상적으로 발생한다. 수신 직후 좌표 한 점만으로 복구 완료를 확정하지 않는다. 상세 자동 복구 판정은 개선사항 1순위로 확인 대기 중이다.
 
+유효 이벤트가 없는 방문의 `visit_status`는 **방문의 기준 시각**으로 `upcoming`과 `unknown`을 가른다. 기준 시각은 그 방문의 공시 시각 중 가장 늦은 값이고, 공시 시각이 없는 방문(경유)은 뒤 방문 중 첫 공시 시각을 상한으로 쓴다. 기준 시각이 서버 시각 이후이거나 없으면 `upcoming`, 지났으면 `unknown`이다. 지났다고 `passed`로 확정하지 않는다 (`02` 8장).
+
 last_observation은 `event_id, trip_stop_id, stop_id, stop_name, stop_sequence, event_type, occurred_at, time_confidence`를 포함한다. 지연 보충으로 현재 진행 위치를 뒤로 옮기지 않는다. 사건이 없는 위치에 가짜 관측을 만들지 않는다.
 
 ## 5. visits[] — 방문별 예측과 근거
@@ -117,6 +119,8 @@ event_confirmed는 목표 도착 등 해당 사건이 이미 관측되었다는 
 ## 9. 버전·조회
 
 `GET /api/v1/scheduled-trips/{trip_id}/state`와 trip:state는 위 구조가 같다. 모든 차량과 방문은 한 확정 버전으로 제공한다. 버전이 낮은 응답으로 되돌리지 않고, 동일 버전의 캐시 복원은 동일 본문을 복사한다. server_time만 전송 시점의 메타데이터다.
+
+**현재 구현 한계 (P2):** 확정 상태 스냅샷(`12` 10장)과 `expire_predictions`는 P4에서 만든다. 그 전까지 `/state`는 조회 시점에 계산하므로 공시 출발이 지나 `prediction_expired`로 바뀌어도 `state_version`이 오르지 않는다. 폴링 화면은 `server_time`과 함께 본문 전체를 새로 반영한다.
 
 시간 경과에 따른 만료는 서버의 정상 상태 변경으로 새 버전을 생성한다. 갱신 전달이 지연되어도 화면은 이미 지난 ETA를 실시간 값으로 계속 보여주지 않는다. 재연결·선택 변경의 조회·버퍼 규칙은 12를 따른다.
 

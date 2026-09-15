@@ -1,4 +1,4 @@
-"""오류 봉투 (01 5장): {error: {code, message, retryable}}. 화면 안내는 한국어."""
+"""오류 봉투 (01 5장): {error: {code, message, retryable[, details]}}. 화면 안내는 한국어."""
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -7,8 +7,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 class AppError(Exception):
-    def __init__(self, status: int, code: str, message: str, retryable: bool = False):
-        self.status, self.code, self.message, self.retryable = status, code, message, retryable
+    def __init__(self, status: int, code: str, message: str, retryable: bool = False, details: dict | None = None):
+        self.status, self.code, self.message, self.retryable, self.details = status, code, message, retryable, details
+
+    def body(self) -> dict:
+        error = {"code": self.code, "message": self.message, "retryable": self.retryable}
+        if self.details is not None:
+            error["details"] = self.details
+        return {"error": error}
 
 
 def not_found(what: str) -> AppError:
@@ -30,7 +36,7 @@ def envelope(status: int, code: str, message: str, retryable: bool = False) -> J
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError):
-        return envelope(exc.status, exc.code, exc.message, exc.retryable)
+        return JSONResponse(status_code=exc.status, content=exc.body(), media_type="application/json; charset=utf-8")
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):

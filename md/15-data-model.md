@@ -117,6 +117,7 @@ flowchart LR
 | ① | `schedule_templates`, `trip_templates`, `scheduled_stop_times`, `source_stop_labels`, `schedule_annotations` | `04` |
 | ② | `schedule_exceptions`, `schedule_route_coverage`, `service_calendar` | `05` |
 | ② | `scheduled_trips`, `scheduled_trip_stops`, `trip_vehicles` | `05` |
+| ① | `staff_accounts` — 입력자·관리자 계정. 날짜와 무관한 기준 자료 | `06` |
 | ③ | `collection_sessions` | `06` |
 | ③ | `location_events`, `clock_checks` | `02` |
 | ③ | `device_positions`, `device_route_assignments` | `07` |
@@ -124,6 +125,9 @@ flowchart LR
 | ④ | `travel_times`, `travel_time_invalidations` | `09` |
 | ⑤ | `trip_state_snapshots`, outbox | `12` |
 | ⑤ | `notices`, `observation_reviews`, `operation_decisions` | `13` |
+| ⑤ | `idempotency_records` — 변경 요청 재전송 판정 | `01` |
+
+`trip_vehicles.departure_observation_event_id`(②)는 `location_events`(③)를 가리키지만 **FK를 걸지 않는다.** 걸면 ②가 ③을 참조해 FR-DM-01을 어긴다. 값의 일관성은 관측 저장·취소 경로가 같은 트랜잭션에서 맞춘다.
 
 **한 테이블에 소유 문서는 하나다.** 열을 추가하려면 소유 문서를 먼저 고친다.
 

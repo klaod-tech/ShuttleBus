@@ -31,6 +31,8 @@ services:
     build: ./api
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/shuttlebus
+      # 루트 .env에 JWT_SECRET을 정한다. 없으면 개발용 기본값(운영 금지)
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
     ports:
       - "8000:8000"
     depends_on:
