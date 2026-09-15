@@ -207,10 +207,15 @@ def _event_context(session: Session, event_id: uuid.UUID):
     return event, sess, vehicle, trip
 
 
-def _check_consistency(event: LocationEvent, events: list[LocationEvent], seq_of: dict, duplicate_code: str, duplicate_message: str) -> None:
-    """유효로 만들기 전에 재확인: 한 방문 한 유효 관측, 같은 방문 사건 모순, 다른 방문과의 시각 순서 (02 6장 재적용)."""
+def _check_consistency(
+    event: LocationEvent, events: list[LocationEvent], seq_of: dict, duplicate_code: str, duplicate_message: str, now: datetime
+) -> None:
+    """유효로 만들기 전에 재확인: 시각 존재·미래 아님, 한 방문 한 유효 관측, 같은 방문 사건 모순, 다른 방문과의 시각 순서 (02 6장 재적용)."""
     if event.occurred_at is None:
         raise AppError(409, "REVIEW_CONFLICT", "발생 시각이 없는 기록은 유효로 만들 수 없습니다.")
+    if event.occurred_at > now + timedelta(seconds=settings.clock_skew_tolerance_seconds or 0):
+        # 미래 시각이 공개되면 정보 신선도가 계속 '확인됨'으로 남는다
+        raise AppError(409, "REVIEW_CONFLICT", "발생 시각이 현재보다 늦은 기록은 유효로 만들 수 없습니다.")
     others = [e for e in events if e.event_id != event.event_id and e.validation_status == "valid" and e.event_type != "skipped"]
     here = {e.event_type: e for e in others if e.trip_stop_id == event.trip_stop_id}
     if event.event_type in here:
@@ -237,7 +242,7 @@ def _make_valid(session, event, sess, trip, vehicle, now, duplicate_code, duplic
     stops = trip_stops_by_id(session, trip.scheduled_trip_id)
     seq_of = {tid: ts.stop_sequence for tid, (ts, _) in stops.items()}
     events = list(session.scalars(select(LocationEvent).where(LocationEvent.trip_vehicle_id == vehicle.trip_vehicle_id)))
-    _check_consistency(event, events, seq_of, duplicate_code, duplicate_message)
+    _check_consistency(event, events, seq_of, duplicate_code, duplicate_message, now)
     others = [e for e in events if e.event_id != event.event_id]
     views = [
         EventView(e.event_id, e.trip_stop_id, seq_of[e.trip_stop_id], e.event_type, e.occurred_at, e.time_confidence, e.validation_status)
@@ -462,6 +467,8 @@ def expire_notice(session: Session, notice_id: uuid.UUID, now: datetime) -> Noti
 
 
 def active_notices(session: Session, route_id: uuid.UUID, trip_id: uuid.UUID | None, now: datetime) -> list[Notice]:
+    if session.get(Route, route_id) is None:
+        raise not_found("노선")
     """유효: expired_early_at IS NULL AND now < expires_at.
 
     trip_id를 주면 노선 전체 공지 + 그 회차 공지, 생략하면 노선의 모든 유효 공지(회차 대상 포함).
@@ -500,6 +507,13 @@ def mark_sessions_for_review(
         .where(CollectionSession.review_required.is_(False), TripVehicle.operation_status.not_in(FINAL))
     ).all()
     for sess, vehicle, trip in rows:
+        # 입력·종료·완료와 경합하지 않도록 회차 잠금 뒤 다시 읽는다.
+        # 잠금 없이 쓰면 동시에 종료된 세션에 needs_review를 써 ended_matches_status 제약을 어길 수 있다
+        lock_trip(session, trip.scheduled_trip_id)
+        for row in (trip, vehicle, sess):
+            session.refresh(row)
+        if sess.review_required or vehicle.operation_status in FINAL:
+            continue
         events = session.scalars(
             select(LocationEvent).where(
                 LocationEvent.trip_vehicle_id == vehicle.trip_vehicle_id,

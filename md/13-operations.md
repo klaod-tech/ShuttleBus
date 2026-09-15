@@ -307,7 +307,8 @@ Idempotency-Key와 관리자 권한을 검증한다. 회차 잠금 아래 대상
 | 검토 승인의 재확인 | 한 방문 한 유효 관측(`REVIEW_CONFLICT`), 같은 방문 도착·통과 공존 금지(`REVIEW_CONFLICT`), 다른 유효 관측과 시각 순서(`EVENT_ORDER_CONFLICT`). 시계·보관 사유는 관리자가 근거(`evidence_note` 필수)로 넘는다 |
 | 승인·복구의 파생 | 입력 경로와 같은 함수로 누락 대체·자동 누락 생성·기점 출발 연결·자동 완료를 적용한다. 복구 시 파생 `skipped`는 새 행으로 다시 계산한다 |
 | 버전 | 검토·복구는 `input_version`·`control_version`·`state_version`을 모두 올린다 |
-| 관리자 취소 | 관리자는 다른 입력자의 관측도 `POST /events/{id}/cancel`로 취소할 수 있다 (15장 대체 관측 정리) |
+| 관리자 취소·종료 | 관리자는 다른 입력자의 관측도 `POST /events/{id}/cancel`로 취소할 수 있다 (15장 대체 관측 정리). 점유가 풀리지 않는 세션은 `POST /collection-sessions/{id}/end`로 종료할 수 있다 (06 1장) |
+| 미래 시각 승인 | 발생 시각이 현재(+시계 허용 오차)보다 늦은 기록은 승인·복구하지 않는다 (`REVIEW_CONFLICT`). 그 시각이 지나면 승인할 수 있다 |
 | 공지 조회 | `trip_id`를 주면 노선 전체 공지 + 그 회차 공지, 생략하면 노선의 모든 유효 공지 |
 | 검토 대상 판정 | `python -m app.jobs mark-sessions-for-review`. P5 `travel_times`와 `session_review_grace_seconds`가 없으면 0건 (2장) |
 | 후속 연결 | 기각·취소의 `travel_time_invalidations` 등록과 재집계 등록은 P5, outbox·`notice:changed`·`trip:state` 전송은 P4에서 같은 트랜잭션에 붙인다 |

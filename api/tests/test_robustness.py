@@ -67,3 +67,44 @@ def test_client_sequence_beyond_integer_is_422(client, trip1, set_now, trusted_s
     set_now(2026, 9, 14, 8, 5)
     res, _ = kim.observe(trip1["stops"][0], "departed", at(5), sequence=2**40)
     assert res.status_code == 422 and res.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_future_event_cannot_be_approved_until_its_time(client, trip1, set_now, trusted_settings):  # noqa: F811
+    from tests.test_operations import Admin
+
+    kim = Collector(client, "kim")
+    kim.start(trip1["vehicle"])
+    clock = kim.clock(set_now, at(4))
+    set_now(2026, 9, 14, 8, 5)
+    future, _ = kim.observe(trip1["stops"][0], "departed", at(20), clock=clock, advance_clock=False)
+    event_id = future.json()["event"]["event_id"]
+    boss = Admin(client)
+    early = boss.review(event_id, "approve", kim, 1)
+    assert early.status_code == 409 and early.json()["error"]["code"] == "REVIEW_CONFLICT"
+    set_now(2026, 9, 14, 8, 21)
+    assert boss.review(event_id, "approve", kim, 1).status_code == 200
+
+
+def test_admin_can_end_orphaned_session_then_new_collection_starts(client, trip1, set_now, trusted_settings):  # noqa: F811
+    """입력자 기기 분실로 writer_instance_id를 잃으면 SESSION_OWNERSHIP_CONFLICT가 계속된다. 관리자 종료로 풀린다."""
+    from tests.test_operations import Admin
+
+    kim = Collector(client, "kim")
+    kim.start(trip1["vehicle"])
+    set_now(2026, 9, 14, 8, 10)
+    lost = Collector(client, "kim").start(trip1["vehicle"])  # 새 기기: 보관한 writer_instance_id 없음
+    assert lost.status_code == 409 and lost.json()["error"]["code"] == "SESSION_OWNERSHIP_CONFLICT"
+
+    boss = Admin(client)
+    sid = kim.session["collection_session_id"]
+    ended = boss.post(f"/api/v1/collection-sessions/{sid}/end", {"ended_at": at(10).isoformat(), "expected_input_version": kim.reload()["input_version"]})
+    assert ended.status_code == 200 and ended.json()["collection_status"] == "ended"
+    lee = Collector(client, "lee")
+    other = lee.post(f"/api/v1/collection-sessions/{sid}/end", {"ended_at": at(10).isoformat(), "expected_input_version": 1})
+    assert other.status_code == 409  # 입력자는 여전히 남의 세션을 종료할 수 없다
+    assert Collector(client, "kim").start(trip1["vehicle"]).status_code == 201
+
+
+def test_notices_unknown_route_is_404(client):
+    res = client.get("/api/v1/notices", params={"route_id": "00000000-0000-0000-0000-000000000000"})
+    assert res.status_code == 404

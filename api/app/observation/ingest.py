@@ -24,7 +24,13 @@ from app.observation.rules import TRANSITION_RANK, EventView, progress_sequence
 
 
 def lock_trip(session: Session, trip_id: uuid.UUID) -> ScheduledTrip:
-    trip = session.scalar(select(ScheduledTrip).where(ScheduledTrip.scheduled_trip_id == trip_id).with_for_update())
+    # populate_existing: 이미 세션에 올라온 객체라도 잠금 뒤의 최신 값(버전·상태)으로 덮는다
+    trip = session.scalar(
+        select(ScheduledTrip)
+        .where(ScheduledTrip.scheduled_trip_id == trip_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if trip is None:
         raise not_found("회차")
     return trip
@@ -182,6 +188,7 @@ def submit_observation(
     vehicle = session.get(TripVehicle, sess.trip_vehicle_id)
     trip = lock_trip(session, vehicle.scheduled_trip_id)
     session.refresh(sess)
+    session.refresh(vehicle)  # 잠금 전에 읽은 완료·취소 상태로 자동 완료를 판단하지 않는다
 
     # 3~4. 이미 확정된 논리 관측 — 기대 버전 검증보다 먼저 (01 4장)
     existing = session.scalar(
@@ -414,6 +421,7 @@ def cancel_observation(
     trip = lock_trip(session, vehicle.scheduled_trip_id)
     session.refresh(event)
     session.refresh(sess)
+    session.refresh(vehicle)
 
     # 관리자는 대체 관측 정리 등을 위해 다른 입력자의 기록도 취소할 수 있다 (13 15장)
     if principal.role != "admin":
@@ -475,7 +483,10 @@ def end_session(
     vehicle = session.get(TripVehicle, sess.trip_vehicle_id)
     lock_trip(session, vehicle.scheduled_trip_id)
     session.refresh(sess)
-    _check_owner(sess, principal, None)
+    # 기기 분실·앱 재설치로 점유가 풀리지 않을 때 관리자가 종료해 새 수집을 열 수 있다 (06 1장 '관리자 확인').
+    # 자동 인계는 하지 않는다 — 새 입력자는 새 세션을 시작한다
+    if principal.role != "admin":
+        _check_owner(sess, principal, None)
     _check_input_version(sess, expected_input_version)
     if sess.ended_at is not None:
         raise AppError(409, "INPUT_VERSION_CONFLICT", "이미 종료된 수집입니다.", details={"current_input_version": sess.input_version})
