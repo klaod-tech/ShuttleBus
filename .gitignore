@@ -1,0 +1,17 @@
+# 로컬 도구·데이터
+.tools/
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+
+# 에디터
+.vscode/
+.idea/

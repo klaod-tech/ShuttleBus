@@ -1,0 +1,41 @@
+# 14 2장 1단계 구성. web은 md_frontend 방침에 따라 화면 도안·서버 계약 확정 후 추가한다.
+# 기동: docker compose up --build
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: shuttlebus
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shuttlebus"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # 단일 초기화 작업: 마이그레이션 → 멱등 시드 → 회차 보충 (14 8·10장)
+  migrate:
+    build: ./api
+    command: sh -c "alembic upgrade head && python -m app.seed && python -m app.jobs ensure-trips --days 14"
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/shuttlebus
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/shuttlebus
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
