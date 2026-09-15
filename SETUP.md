@@ -40,8 +40,8 @@ Kubernetes 실습(P8)용 minikube·kubectl은 그 단계에서 추가한다. 지
 | Git | 2.55.0 설치됨 |
 | Node.js / npm | 24.18.0 / 11.16.0 설치됨 |
 | Python / pip | 3.13.14 / 26.1.2 설치됨 |
-| WSL2 | **미설치** |
-| Docker Desktop | **미설치** — 관리자 권한 설치 필요 |
+| WSL2 | 설치됨 (2026-09-15) |
+| Docker Desktop | 설치됨 — Docker 29.8.0, Compose v5.5.1 (2026-09-15) |
 
 ## 프로젝트 패키지
 

@@ -14,6 +14,7 @@ from app.models.reference import (
     RouteVersion,
     ScheduledStopTime,
     ScheduleTemplate,
+    SourceStopLabel,
     Stop,
     TripTemplate,
 )
@@ -164,7 +165,7 @@ def test_fr_rd_12_published_times_kept(db):
         for st in db.scalars(select(ScheduledStopTime).where(ScheduledStopTime.trip_template_id == tt_id))
     }
     assert times[(route_stop_id("cheonan", "weekday_general", 1), "departure")] == time(7, 40)
-    assert times[(route_stop_id("cheonan", "weekday_general", 4), "unspecified")] == time(8, 15)
+    assert times[(route_stop_id("cheonan", "weekday_general", 4), "arrival")] == time(8, 15)
 
 
 def test_fr_rd_13_route_paths_not_yet_loaded(db):
@@ -184,20 +185,52 @@ def test_no_parse_issues_in_source():
     assert [t.source_row_key for t in TRIPS if t.issues] == []
 
 
-def test_external_column_times_are_unspecified():
-    """외부 정거장 열 시각은 기점이 아니면 도착·출발로 단정하지 않는다 (04 11장)."""
+def test_external_column_times_are_arrivals():
+    """외부 정거장 열 시각은 도착. 그 회차의 기점이면 출발 (04 5장, 2026-09-15 확인)."""
     t = trip("weekday", "cheonan_asan", 1)
-    assert [(s.pattern_seq, s.event_type) for s in t.times] == [(1, "departure"), (4, "unspecified"), (5, "arrival")]
+    assert [(s.pattern_seq, s.event_type) for s in t.times] == [(1, "departure"), (4, "arrival"), (5, "arrival")]
+    onyang1 = trip("weekday", "onyang", 1)  # 주은아파트 기점 → 온양온천역·아산터미널은 도착
+    assert [(s.pattern_seq, s.event_type) for s in onyang1.times] == [
+        (2, "departure"), (3, "arrival"), (4, "arrival"), (6, "arrival")
+    ]
+    assert not any(s.event_type == "unspecified" for tr in TRIPS for s in tr.times)
     t2 = trip("weekday", "cheonan_asan", 2)
     assert [(s.pattern_seq, s.event_type) for s in t2.times] == [(4, "departure"), (5, "arrival")]
 
 
-def test_sunmoon_is_provisional_not_merged(db):
-    stop = db.get(Stop, stop_id(src.SUNMOON))
-    assert stop.verification_status == "needs_interpretation"
-    pattern = db.get(RoutePattern, sid("pattern", "terminal", "holiday_provisional"))
-    assert pattern.verification_status == "needs_interpretation"
-    assert stop.stop_id != stop_id(src.CAMPUS)
+def test_sunmoon_resolves_to_campus(db):
+    """휴일 표 '선문대' = 아산캠퍼스 (2026-09-15 확인). 원문 표기는 source_cells·source_stop_labels에 남는다."""
+    assert db.scalar(select(Stop).where(Stop.name == src.SUNMOON)) is None
+    label = db.get(SourceStopLabel, (src.SOURCE_HOLIDAY, src.SUNMOON))
+    assert (label.resolved_stop_id, label.verification_status) == (stop_id(src.CAMPUS), "verified")
+
+    for day_type in ("saturday", "sunday_holiday"):
+        t = trip(day_type, "terminal", 1)
+        assert t.pattern == "general"
+        assert [c["label"] for c in t.source_cells["columns"]][0] == "선문대(출발)"
+    assert _route_stop_count(db, "terminal", "general") == 10
+
+
+def test_major_external_stops_allow_boarding_and_alighting(db):
+    def policy(route, code, seq):
+        rs = db.get(RouteStop, route_stop_id(route, code, seq))
+        return rs.boarding_policy, rs.alighting_policy
+
+    assert policy("cheonan_asan", "general", 4) == ("allowed", "allowed")  # 천안아산역
+    assert policy("cheonan", "holiday_general", 3) == ("allowed", "allowed")  # 천안아산역 가는 길
+    assert policy("cheonan", "holiday_general", 9) == ("allowed", "allowed")  # 천안아산역 오는 길
+    assert policy("terminal", "general", 5) == ("allowed", "allowed")  # 천안터미널
+    assert policy("onyang", "general", 3) == ("allowed", "allowed")  # 온양온천역
+    # 주요 정거장이 아닌 경유지는 계속 확인 필요
+    assert policy("cheonan_asan", "general", 2) == ("unknown", "unknown")  # 탕정역
+    assert policy("onyang", "general", 5) == ("unknown", "unknown")  # 권곡초 (경유)
+    # 기점·종점 규칙은 그대로
+    assert policy("cheonan_asan", "general", 1) == ("allowed", "not_allowed")
+    assert policy("cheonan_asan", "general", 5) == ("not_allowed", "allowed")
+
+
+def test_mvp_route_is_cheonan_asan(db):
+    assert db.get(Route, route_id(src.MVP_ROUTE)).name == "천안아산역"
 
 
 def test_fr_in_02_seed_idempotent(db):

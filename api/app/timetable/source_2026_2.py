@@ -11,11 +11,25 @@ SOURCE_WEEKDAY = "2026-2학기 셔틀버스 시간표_평일.pdf p1"
 SOURCE_HOLIDAY = "2026-2학기 셔틀버스 시간표_휴일.pdf p1"
 
 CAMPUS = "아산캠퍼스"
-SUNMOON = "선문대"  # 휴일 천안터미널 열 표기. 아산캠퍼스와 같은 지점인지 확인 전 (04 11장)
+SUNMOON = "선문대"  # 휴일 천안터미널 열 표기. 아산캠퍼스와 같은 지점임을 사용자가 확인 (2026-09-15)
+
+# MVP 노선 (00 3장, 2026-09-15 결정)
+MVP_ROUTE = "cheonan_asan"
 
 # ---------- 정거장 ----------
 
-NEEDS_INTERPRETATION_STOPS = {"펜타포트", SUNMOON}
+NEEDS_INTERPRETATION_STOPS = {"펜타포트"}
+
+# 승하차 가능한 주요 외부 정거장 — 시간표 열에 시각이 공시된 외부 정거장 (2026-09-15 사용자 확인).
+# 이 정거장의 모든 중간 방문은 승차·하차 allowed. 그 밖의 경유지는 계속 unknown (04 1장)
+MAJOR_EXTERNAL_STOPS = {
+    "천안아산역",
+    "천안역",
+    "천안터미널",
+    "주은아파트 버스정류장",
+    "온양온천역",
+    "아산터미널",
+}
 
 STOP_NAMES = [
     CAMPUS,
@@ -40,7 +54,6 @@ STOP_NAMES = [
     "온양온천역",
     "아산터미널",
     "권곡초 버스정류장",
-    SUNMOON,
 ]
 
 # ---------- 노선·패턴 (04 4장, 9장) ----------
@@ -92,12 +105,9 @@ PATTERNS = [
     PatternDef("cheonan", "middle_only", "to_campus",
                ("하이렉스파건너편", "용암마을", CAMPUS),
                WEEKDAY_RANGE, note="중간노선 전용 — 평일 순5"),
-    PatternDef("terminal", "weekday_general", "round_trip",
-               (CAMPUS, *TERMINAL_MIDDLE, CAMPUS), WEEKDAY_RANGE),
-    PatternDef("terminal", "holiday_provisional", "round_trip",
-               (SUNMOON, *TERMINAL_MIDDLE, SUNMOON), HOLIDAY_RANGE,
-               verification_status="needs_interpretation",
-               note="휴일 표 열 표기 '선문대'. 아산캠퍼스와 같은 지점인지 확인 전 잠정 패턴"),
+    PatternDef("terminal", "general", "round_trip",
+               (CAMPUS, *TERMINAL_MIDDLE, CAMPUS), WEEKDAY_RANGE,
+               note="평일·토·일 공통. 휴일 표의 '선문대'는 아산캠퍼스"),
     PatternDef("terminal", "middle_only", "to_campus",
                ("두정동 맥도날드", "홈마트 에브리데이", "서울대정병원", "갤러리아 건너편", CAMPUS),
                WEEKDAY_RANGE, note="중간노선 전용 — 평일 순9"),
@@ -352,7 +362,7 @@ TABLES: list[SourceTable] = [
                 _weekday_rows("cheonan_asan", _A1, 3, _A1_VEHICLES), SOURCE_WEEKDAY),
     SourceTable("weekday", "cheonan", "weekday_general", _CHEONAN_WEEKDAY_COLS,
                 _weekday_rows("cheonan", _A2, 3), SOURCE_WEEKDAY),
-    SourceTable("weekday", "terminal", "weekday_general", _TERMINAL_WEEKDAY_COLS,
+    SourceTable("weekday", "terminal", "general", _TERMINAL_WEEKDAY_COLS,
                 _weekday_rows("terminal", _A3, 3), SOURCE_WEEKDAY),
     SourceTable("weekday", "onyang", "general", _ONYANG_COLS,
                 _weekday_rows("onyang", _A4, 6), SOURCE_WEEKDAY),
@@ -369,7 +379,7 @@ TABLES: list[SourceTable] = [
 3 16:00 16:30 17:00
 4 18:10 18:40 19:10
 """), SOURCE_HOLIDAY),
-    SourceTable("saturday", "terminal", "holiday_provisional", _TERMINAL_HOLIDAY_COLS, _simple_rows("""
+    SourceTable("saturday", "terminal", "general", _TERMINAL_HOLIDAY_COLS, _simple_rows("""
 1 8:00 8:30 9:00
 2 12:00 12:30 13:00
 3 16:00 16:30 17:00
@@ -391,7 +401,7 @@ TABLES: list[SourceTable] = [
 4 18:10 18:40 19:10
 5 19:00 19:30 20:00
 """), SOURCE_HOLIDAY),
-    SourceTable("sunday_holiday", "terminal", "holiday_provisional", _TERMINAL_HOLIDAY_COLS, _simple_rows("""
+    SourceTable("sunday_holiday", "terminal", "general", _TERMINAL_HOLIDAY_COLS, _simple_rows("""
 1 9:00 9:30 10:00
 2 12:00 12:30 13:00
 3 16:00 16:30 17:00

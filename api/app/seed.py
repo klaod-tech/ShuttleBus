@@ -86,9 +86,15 @@ def seed_reference_data(session: Session) -> None:
         last = len(p.stops)
         for seq, name in enumerate(p.stops, start=1):
             is_origin, is_terminal = seq == 1, seq == last
-            # 기점: 승차만, 종점: 하차만, 확인되지 않은 경유지: 양쪽 unknown (04 1장)
-            boarding = "allowed" if is_origin else "not_allowed" if is_terminal else "unknown"
-            alighting = "not_allowed" if is_origin else "allowed" if is_terminal else "unknown"
+            # 기점: 승차만, 종점: 하차만, 주요 외부 정거장: 양쪽 허용, 그 밖의 경유지: 양쪽 unknown (04 1장)
+            if is_origin:
+                boarding, alighting = "allowed", "not_allowed"
+            elif is_terminal:
+                boarding, alighting = "not_allowed", "allowed"
+            elif name in src.MAJOR_EXTERNAL_STOPS:
+                boarding, alighting = "allowed", "allowed"
+            else:
+                boarding, alighting = "unknown", "unknown"
             session.merge(
                 RouteStop(
                     route_stop_id=route_stop_id(p.route, p.code, seq),
@@ -106,10 +112,10 @@ def seed_reference_data(session: Session) -> None:
         SourceStopLabel(
             source_reference=src.SOURCE_HOLIDAY,
             raw_name=src.SUNMOON,
-            provisional_stop_id=stop_id(src.SUNMOON),
-            resolved_stop_id=None,
-            verification_status="needs_interpretation",
-            note="휴일 천안터미널 열 표기. 같은 표의 경로 설명은 아산캠퍼스. 확인 전 합치지 않음",
+            provisional_stop_id=None,
+            resolved_stop_id=stop_id(src.CAMPUS),
+            verification_status="verified",
+            note="휴일 천안터미널 열 표기. 아산캠퍼스와 같은 지점 (2026-09-15 사용자 확인)",
         )
     )
 

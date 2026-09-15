@@ -138,8 +138,9 @@ def parse_row(table: SourceTable, row: SourceRow) -> TripDef:
         elif seq == len(pattern.stops):
             event_type = "arrival"
         else:
-            # 외부 정거장 열의 시각은 도착·출발 의미가 확인되지 않았다 (04 11장)
-            event_type = "unspecified"
+            # 외부 정거장 열의 시각은 그 정거장 도착 시각이다 (2026-09-15 사용자 확인, 04 5장).
+            # 기점이면 위에서 출발로 처리된다. 정차 후 출발 시각은 공시되지 않는다
+            event_type = "arrival"
         times.append(StopTime(seq, event_type, raw))
 
     if issues:

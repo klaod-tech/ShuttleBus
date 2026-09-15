@@ -209,10 +209,10 @@ def test_fr_sc_12_times_stored_as_utc_from_seoul(db, monkeypatch):
             ScheduledTripStop.route_stop_id == route_stop_id("cheonan_asan", "general", 4),
         )
     )
-    # 외부역 시각은 도착·출발 어느 쪽에도 복제하지 않는다
-    assert station.scheduled_unspecified_at is not None
-    assert station.scheduled_arrival_at is None and station.scheduled_departure_at is None
-    assert station.verification_status == "needs_interpretation"
+    # 외부역 열 시각은 도착 시각이다. 출발 칸에 복제하지 않는다
+    assert station.scheduled_arrival_at.astimezone(timezone.utc) == datetime(2026, 9, 9, 23, 25, tzinfo=timezone.utc)
+    assert station.scheduled_unspecified_at is None and station.scheduled_departure_at is None
+    assert station.verification_status == "verified"
 
 
 def test_fr_sc_14_partial_import_is_unknown(db):
@@ -333,7 +333,7 @@ def test_stops_api_no_service_returns_status(client):
 def test_stops_api_rejects_foreign_version(client):
     res = client.get(
         f"/api/v1/routes/{route_id('cheonan')}/stops",
-        params={"service_date": "2026-09-10", "route_version_id": str(version_id("terminal", "weekday_general"))},
+        params={"service_date": "2026-09-10", "route_version_id": str(version_id("terminal", "general"))},
     )
     assert res.status_code == 422
 
