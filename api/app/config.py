@@ -1,6 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+DEV_JWT_SECRET = "dev-only-insecure-secret-change-me"
+# .env.example의 자리표시 값도 운영에서 거부한다
+PLACEHOLDER_JWT_SECRETS = {DEV_JWT_SECRET, "change-me-to-a-long-random-string"}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -8,7 +13,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres@localhost:55432/shuttlebus"
 
     # 서명 비밀값 (01 7장, 서버 전용). 운영에서는 반드시 JWT_SECRET으로 덮어쓴다
-    jwt_secret: str = "dev-only-insecure-secret-change-me"
+    jwt_secret: str = DEV_JWT_SECRET
     access_token_ttl_seconds: int = 86400  # 확정 (01 5장)
 
     # 08 6장 — 시험값
@@ -25,6 +30,13 @@ class Settings(BaseSettings):
 
     # 13 10장 — 실측 후 확정. None이면 검토 대상 판정을 하지 않는다
     session_review_grace_seconds: int | None = None
+
+    # development / production. production이면 기동 시 비밀값을 검사한다
+    app_env: str = "development"
+
+    def check_production_secrets(self) -> None:
+        if self.app_env == "production" and (self.jwt_secret in PLACEHOLDER_JWT_SECRETS or len(self.jwt_secret) < 32):
+            raise RuntimeError("APP_ENV=production에서는 32자 이상의 JWT_SECRET을 설정해야 합니다.")
 
 
 settings = Settings()

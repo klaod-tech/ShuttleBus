@@ -7,6 +7,11 @@ SEOUL = ZoneInfo("Asia/Seoul")
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 
+# 조회·저장을 허용하는 운행 날짜 범위. 날짜 계산 넘침과 익명 조회의 무한 행 생성을 막는다
+MIN_SERVICE_DATE = date(2020, 1, 1)
+MAX_SERVICE_DATE = date(2100, 12, 31)
+
+
 def today_seoul(now: datetime | None = None) -> date:
     now = now or datetime.now(tz=SEOUL)
     return now.astimezone(SEOUL).date()

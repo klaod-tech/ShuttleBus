@@ -94,7 +94,7 @@ class ObservationIn(BaseModel):
     event_type: Literal["arrived", "departed", "passed"]
     occurred_at: AwareDatetime
     client_event_id: str = Field(min_length=1, max_length=200)
-    client_sequence: int = Field(ge=1)
+    client_sequence: int = Field(ge=1, le=2**31 - 1)  # DB INTEGER 범위
     expected_input_version: int
     confirm_skip: bool = False
     writer_instance_id: uuid.UUID

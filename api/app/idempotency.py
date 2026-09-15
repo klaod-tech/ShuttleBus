@@ -9,6 +9,7 @@ import json
 import uuid
 
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.errors import AppError, invalid
@@ -27,6 +28,10 @@ def require_key(key: str | None) -> str:
 
 
 def replay(session: Session, account_id: uuid.UUID, key: str, endpoint: str, digest: str) -> tuple[int, dict] | None:
+    # 같은 키의 동시 요청을 직렬화한다. 트랜잭션 잠금이라 커밋·롤백 때 풀린다.
+    # 없으면 두 요청이 모두 '기록 없음'을 보고 처리해, 한쪽이 PK 충돌(500)이나 잘못된 거절을 받는다
+    lock_id = int.from_bytes(hashlib.sha256(f"{account_id}:{key}".encode()).digest()[:8], "big", signed=True)
+    session.execute(text("SELECT pg_advisory_xact_lock(:id)"), {"id": lock_id})
     record = session.get(IdempotencyRecord, (account_id, key))
     if record is None:
         return None

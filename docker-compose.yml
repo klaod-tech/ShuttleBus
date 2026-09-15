@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: shuttlebus
     ports:
-      - "5432:5432"
+      # 이 PC에서만 접속. 0.0.0.0으로 열면 같은 네트워크 누구나 기본 비밀번호로 DB에 붙는다
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
@@ -33,6 +34,8 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/shuttlebus
       # 루트 .env에 JWT_SECRET을 정한다. 없으면 개발용 기본값(운영 금지)
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
+      # production이면 기본·짧은 JWT_SECRET으로 기동하지 않는다
+      APP_ENV: ${APP_ENV:-development}
     ports:
       - "8000:8000"
     depends_on:

@@ -60,9 +60,14 @@ def issue_token(account: StaffAccount, now: datetime) -> tuple[str, int]:
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256"), ttl
 
 
+_DUMMY_HASH = hash_password("dummy-password-for-timing")
+
+
 def authenticate(session: Session, username: str, password: str) -> StaffAccount | None:
     account = session.scalar(select(StaffAccount).where(StaffAccount.username == username))
-    if account is None or not account.is_active or not verify_password(password, account.password_hash):
+    # 없는 계정도 같은 해시 비용을 치러 응답 시간으로 계정 존재를 알 수 없게 한다
+    valid = verify_password(password, account.password_hash if account is not None else _DUMMY_HASH)
+    if account is None or not account.is_active or not valid:
         return None
     return account
 
@@ -80,9 +85,13 @@ def current_principal(
         claims = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"], options={"verify_exp": False})
     except jwt.PyJWTError:
         raise AppError(401, "AUTH_REQUIRED", "로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.")
-    if claims.get("exp", 0) <= now.timestamp():
+    if not isinstance(claims.get("exp"), (int, float)) or claims["exp"] <= now.timestamp():
         raise AppError(401, "AUTH_REQUIRED", "로그인이 만료되었습니다. 다시 로그인해 주세요. 전송 대기 기록은 유지됩니다.")
-    account = session.get(StaffAccount, uuid.UUID(claims["sub"]))
+    try:
+        account_id = uuid.UUID(str(claims["sub"]))
+    except (KeyError, ValueError):
+        raise AppError(401, "AUTH_REQUIRED", "로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.")
+    account = session.get(StaffAccount, account_id)
     if account is None or not account.is_active:
         raise AppError(401, "AUTH_REQUIRED", "사용할 수 없는 계정입니다.")
     return Principal(account.account_id, account.username, account.role)

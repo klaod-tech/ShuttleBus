@@ -11,7 +11,7 @@ from app.calendar.service import ensure_scheduled_trips, resolve_service_calenda
 from app.candidates.service import REFRESH_AFTER_SECONDS, find_boarding_candidates, trips_for_route_date
 from app.clock import get_now
 from app.db import get_session
-from app.errors import invalid, not_found
+from app.errors import check_service_date, invalid, not_found
 from app.models.calendar import ScheduledTrip
 from app.models.reference import Route, Stop
 from app.seed import route_id as seed_route_id
@@ -119,6 +119,7 @@ def get_scheduled_trips(
 ):
     if session.get(Route, route_id) is None:
         raise not_found("노선")
+    check_service_date(service_date)
     if (origin_stop_id is None) != (destination_stop_id is None):
         raise invalid("origin_stop_id와 destination_stop_id는 함께 보내거나 함께 생략해야 합니다.")
 

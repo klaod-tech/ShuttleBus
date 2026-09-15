@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.calendar.resolve import running_trips
 from app.calendar.service import daterange, load_calendar_data, resolve_service_calendar
 from app.db import get_session
-from app.errors import invalid, not_found
+from app.errors import check_service_date, invalid, not_found
 from app.models.reference import Route, RoutePattern, RouteStop, RouteVersion, Stop, TripTemplate
 
 router = APIRouter(prefix="/api/v1")
@@ -90,6 +90,7 @@ def get_service_calendar(
     session: Session = Depends(get_session),
 ):
     _route_or_404(session, route_id)
+    check_service_date(from_date, to_date)
     if to_date < from_date:
         raise invalid("to_date는 from_date보다 앞설 수 없습니다.")
     if (to_date - from_date).days + 1 > MAX_CALENDAR_DAYS:
@@ -124,6 +125,7 @@ def get_route_stops(
     session: Session = Depends(get_session),
 ):
     _route_or_404(session, route_id)
+    check_service_date(service_date)
     if route_pattern_id is not None:
         pattern = session.get(RoutePattern, route_pattern_id)
         if pattern is None:

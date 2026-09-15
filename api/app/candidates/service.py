@@ -185,9 +185,9 @@ def next_service_date_for_pair(
     period_end = max((t.effective_to for t in data.templates), default=after)
     d = after
     for _ in range(NEXT_DATE_HORIZON_DAYS):
-        d += timedelta(days=1)
-        if d > period_end:
+        if d >= period_end:
             break
+        d += timedelta(days=1)
         res = resolve(data, route_id, d)
         if res.schedule_status == "unknown":
             has_unknown = True

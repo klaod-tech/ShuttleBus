@@ -230,7 +230,7 @@ Phase 2 초기에는 두 기록을 **일부러 모두 남겨** 판별 정확도�
 | duplicate_observation | 같은 방문·종류의 유효 관측이 이미 있음 |
 | departed_before_arrived | 먼저 있는 arrived보다 이른 departed |
 | conflicting_event_types | 같은 방문의 arrived와 passed 충돌 |
-| outside_collection_period | 세션 시작~종료 밖 |
+| outside_collection_period | 세션 시작~종료 밖. 열린 세션의 끝은 수신 시각 + `clock_skew_tolerance_seconds` (미래 발생 시각 차단) |
 | clock_unverified / clock_skew_exceeded / clock_check_out_of_range | 시계 근거 없음·설정 미정 / 허용 초과 / 유효 범위 밖 |
 | retention_undefined / retention_exceeded | 보관 허용기간 미정 / 초과 |
 

@@ -36,6 +36,19 @@ def trusted_settings(monkeypatch):
     monkeypatch.setattr(settings, "realtime_input_window_seconds", 120)
 
 
+def advance_clock_to(moment: datetime) -> None:
+    """버튼을 누른 순간보다 서버 시각이 앞서 있을 수 없다. 서버 시각이 발생 시각보다 이르면 발생 시각으로 옮긴다.
+
+    열린 세션은 수신 시각 이후의 발생 시각을 수집 기간 밖으로 본다 (02 6장).
+    """
+    from app.clock import get_now
+    from app.main import app
+
+    current = app.dependency_overrides.get(get_now)
+    if current is not None and current() < moment:
+        app.dependency_overrides[get_now] = lambda: moment
+
+
 class Collector:
     """입력자 앱 흉내. 논리 관측 ID·순번은 유지하고 요청 시도마다 Idempotency-Key를 발급한다."""
 
@@ -72,7 +85,7 @@ class Collector:
         ).json()
         return done["clock_check_id"]
 
-    def observe(self, trip_stop_id, event_type, occurred_at, *, clock=None, confirm_skip=False, event_id=None, sequence=None, key=None, version=None):
+    def observe(self, trip_stop_id, event_type, occurred_at, *, clock=None, confirm_skip=False, event_id=None, sequence=None, key=None, version=None, advance_clock=True):
         if sequence is None:
             self.sequence += 1
             sequence = self.sequence
@@ -87,6 +100,8 @@ class Collector:
             "writer_instance_id": self.session["writer_instance_id"],
             "clock_check_id": clock,
         }
+        if advance_clock:
+            advance_clock_to(occurred_at)
         res = self.post(f"/api/v1/collection-sessions/{self.session['collection_session_id']}/events", body, key)
         if res.status_code in (200, 201):
             self.session["input_version"] = res.json()["input_version"]

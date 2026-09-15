@@ -161,12 +161,13 @@
 | `AUTH_REQUIRED` | 401 | 토큰 없음·만료·잘못된 로그인. 화면은 재로그인 안내, 대기 큐 유지 | false | `01` |
 | `FORBIDDEN` | 403 | 역할이 맞지 않음, 다른 입력자의 세션 조회 | false | `01` |
 | `EVENT_ALREADY_CANCELLED` | 409 | 이미 취소된 기록의 재취소. 되돌리려면 13 복구 | false | `02` |
-| `VALIDATION_ERROR` | 422 | 필수 입력 누락·형식 오류·소속이 맞지 않는 ID 조합 (예: 날짜 없는 정거장 조회) | false | `01` |
+| `VALIDATION_ERROR` | 422 | 필수 입력 누락·형식 오류·소속이 맞지 않는 ID 조합 (예: 날짜 없는 정거장 조회)·허용 범위(2020-01-01~2100-12-31) 밖 운행 날짜 | false | `01` |
 | `REVIEW_CONFLICT` | 409 | 검토 대상 상태 변경 또는 대표 관측 충돌 | false | `13` |
 | `RESTORE_CONFLICT` | 409 | 복구하면 한 방문에 유효 관측이 둘이 됨 | false | `13` |
 | `OPERATION_STATE_CONFLICT` | 409 | 이미 완료·취소된 차량·회차에 완료·취소 요청, 완료되지 않은 차량의 완료 재검토 | false | `13` |
 | `CLOCK_EVIDENCE_INVALID` | 422 | 시계 검증 근거 형식·소속 불일치 | false | `02` |
 | `CACHE_REBUILDING` | 503 | 캐시 복원 중 | true | `12` |
+| `INTERNAL_ERROR` | 500 | 처리하지 못한 서버 오류. 내부 정보는 응답에 싣지 않고 로그로만 남김 | true | `01` |
 
 **날짜 자료 미확보는 404가 아니다.** 200 응답의 `schedule_status = unknown`으로 표현한다. 404는 존재하지 않는 리소스에만 쓴다.
 

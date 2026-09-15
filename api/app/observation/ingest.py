@@ -256,7 +256,9 @@ def submit_observation(
                 )
 
     # ---- 보관 판정: 수집 기간 → 시계 → 보관 기간 ----
-    if data.occurred_at < sess.started_at or (sess.ended_at is not None and data.occurred_at > sess.ended_at):
+    # 열린 세션의 끝은 수신 시각이다. 서버 시각보다 앞선 발생 시각은 시계 허용 오차까지만 인정한다
+    period_end = sess.ended_at if sess.ended_at is not None else received_at + timedelta(seconds=settings.clock_skew_tolerance_seconds or 0)
+    if data.occurred_at < sess.started_at or data.occurred_at > period_end:
         review.append("outside_collection_period")
     clock_reason = _clock_reason(session, sess, data)
     if clock_reason:

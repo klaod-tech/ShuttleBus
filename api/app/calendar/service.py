@@ -95,6 +95,9 @@ def resolve_service_calendar(
         return _from_row(existing)
 
     res = resolve(data or load_calendar_data(session), route_id, service_date)
+    if existing is not None and _same(existing, res):
+        # 판정이 그대로면 쓰지 않는다. 학생 조회(주기 폴링)마다 행을 갱신하면 쓰기·잠금 경합이 생긴다
+        return res
     stmt = insert(ServiceCalendar).values(
         service_date=service_date,
         route_id=route_id,
@@ -117,6 +120,16 @@ def resolve_service_calendar(
     if existing is not None:
         session.expire(existing)
     return res
+
+
+def _same(row: ServiceCalendar, res: Resolution) -> bool:
+    return (
+        row.schedule_status, row.reason, row.applied_schedule_template_id, row.actual_weekday,
+        row.effective_service_weekday, row.effective_day_type,
+    ) == (
+        res.schedule_status, res.reason, res.applied_schedule_template_id, res.actual_weekday,
+        res.effective_service_weekday, res.effective_day_type,
+    )
 
 
 def _from_row(row: ServiceCalendar) -> Resolution:
@@ -158,7 +171,13 @@ def ensure_scheduled_trips(
             continue
         weekday = res.effective_service_weekday
         summaries = data.trips.get((res.applied_schedule_template_id, route_id), [])
+        # 이미 만든 회차는 INSERT 시도조차 하지 않는다. 동시 생성 경합은 ON CONFLICT DO NOTHING이 막는다
+        existing_templates = set(
+            session.scalars(select(ScheduledTrip.trip_template_id).where(ScheduledTrip.service_date == d))
+        )
         for summary in running_trips(summaries, weekday):
+            if summary.trip_template_id in existing_templates:
+                continue
             count = vehicle_count(summary, weekday)
             if count is None:
                 report.data_errors.append(f"{d} {summary.trip_template_id}: vehicle_count_by_weekday[{weekday}]")
