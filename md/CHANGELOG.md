@@ -67,6 +67,20 @@ Transit 앱·PC 조합을 채택하고 Citymapper는 제외했다. 기본 지도
 
 **구현 범위:** 마이그레이션 0005, Compose에 redis 추가, `uvicorn app.main:asgi`. 화면 쪽 동기화 절차(FR-RT-01·02·05·06·13·19·20)는 `md_frontend/must_do.md` F6에서 확인한다.
 
+## 프론트엔드 연동 준비 (2026-09-18)
+
+화면은 별도 담당자가 만든다. 이 저장소에는 화면 코드를 두지 않고 서버 쪽 조건만 갖췄다.
+
+| 항목 | 내용 |
+|---|---|
+| 환경 파일 | `.gitignore`에 `.env.local`·`.env.*.local` 등 추가. `.env.example`은 값 없이 주석만 두고 자리표시 비밀값을 제거 |
+| CORS | `CORS_ORIGINS`(쉼표 구분) 신설 — REST 미들웨어와 Socket.IO에 함께 적용. 비우면 같은 출처만. `*` 미사용. Docker가 루트 `.env` 값을 넘긴다 |
+| 계정 | `staff_accounts.updated_at` 추가(마이그레이션 0006). `python -m app.accounts bootstrap` — `ADMIN_BOOTSTRAP_ID`·`ADMIN_BOOTSTRAP_PASSWORD`로 최초 관리자 1명, 멱등, 기존 비밀번호를 되돌리지 않음 |
+| 정거장 좌표 | `GET /admin/stops`, `POST /admin/stops/{id}/location`, `python -m app.stops`. 남한 좌표 범위 검사, `verification_status` 기록 |
+| 시드 결함 수정 | 원문 재적재가 `stops`를 전체 덮어써 등록한 좌표·확인 상태를 null로 되돌리던 문제. 이제 이름만 갱신한다 |
+
+**받아들이지 않은 지시와 이유:** 새 `users` 테이블(이미 `staff_accounts`가 있고 FK 5곳이 참조 — 이름만 바뀌고 얻는 기능 없음), bcrypt·argon2 교체(현재 scrypt는 표준 메모리 강화 KDF이며 단순 해시가 아니다), 부트스트랩 비밀번호의 상시 파일 보관(평문 잔존 — 기본은 CLI 프롬프트, 부트스트랩은 무인 기동 전용·일회용).
+
 ## 운영 결정 (2026-09-18)
 
 | 결정 | 반영 |

@@ -13,13 +13,14 @@ from app.api.collection import EventOut, SessionOut, _idempotent, _local, event_
 from app.auth import Principal, require_role
 from app.clock import get_now
 from app.db import get_session
-from app.errors import not_found
+from app.errors import invalid, not_found
 from app.models.calendar import ScheduledTrip, TripVehicle
 from app.models.observation import CollectionSession, LocationEvent, ObservationReview
 from app.models.operations import Notice, OperationDecision
-from app.models.reference import TripTemplate
+from app.models.reference import Stop, TripTemplate
 from app.operations import service
 from app.operations.completion import completion_review_required
+from app.stops import set_location
 
 router = APIRouter(prefix="/api/v1")
 admin = require_role("admin")
@@ -121,6 +122,27 @@ class ReviewResultOut(BaseModel):
     state_version: int
 
 
+class StopLocationIn(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    # 현장 확인 없이 확정으로 올리지 않는다 (04 11장)
+    verification_status: Literal["verified", "needs_interpretation", "unverified"] = "verified"
+    geofence_radius_m: int | None = Field(default=None, ge=1, le=2000)
+
+
+class StopOut(BaseModel):
+    stop_id: uuid.UUID
+    name: str
+    latitude: float | None
+    longitude: float | None
+    geofence_radius_m: int | None
+    verification_status: str
+
+
+class StopListOut(BaseModel):
+    stops: list[StopOut]
+
+
 class NoticeIn(BaseModel):
     route_id: uuid.UUID
     trip_id: uuid.UUID | None = None
@@ -198,6 +220,17 @@ def review_out(r: ObservationReview) -> ReviewRecordOut:
         reviewed_at=_local(r.reviewed_at),
         input_version=r.input_version,
         control_version=r.control_version,
+    )
+
+
+def stop_out(s: Stop) -> StopOut:
+    return StopOut(
+        stop_id=s.stop_id,
+        name=s.name,
+        latitude=s.latitude,
+        longitude=s.longitude,
+        geofence_radius_m=s.geofence_radius_m,
+        verification_status=s.verification_status,
     )
 
 
@@ -386,6 +419,36 @@ def post_notice_expire(
         return 200, notice_out(service.expire_notice(session, notice_id, now))
 
     return _idempotent(session, principal, idempotency_key, f"POST /admin/notices/{notice_id}/expire", {}, handler)
+
+
+# ---------- 정거장 좌표 (04 11장) ----------
+
+
+@router.get("/admin/stops", response_model=StopListOut, summary="정거장 좌표·확인 상태 목록")
+def list_stops(principal: Principal = Depends(admin), session: Session = Depends(get_session)):
+    return StopListOut(stops=[stop_out(s) for s in session.scalars(select(Stop).order_by(Stop.name))])
+
+
+@router.post("/admin/stops/{stop_id}/location", response_model=StopOut, summary="정거장 좌표 등록·수정")
+def post_stop_location(
+    stop_id: uuid.UUID,
+    body: StopLocationIn,
+    idempotency_key: str | None = Header(default=None),
+    principal: Principal = Depends(admin),
+    session: Session = Depends(get_session),
+):
+    def handler():
+        stop = session.get(Stop, stop_id)
+        if stop is None:
+            raise not_found("정거장")
+        try:
+            set_location(session, stop, body.latitude, body.longitude, body.verification_status, body.geofence_radius_m)
+        except ValueError as exc:
+            raise invalid(str(exc)) from None
+        return 200, stop_out(stop)
+
+    endpoint = f"POST /admin/stops/{stop_id}/location"
+    return _idempotent(session, principal, idempotency_key, endpoint, body.model_dump(), handler)
 
 
 # ---------- 기록 조회 ----------

@@ -1,4 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 DEV_JWT_SECRET = "dev-only-insecure-secret-change-me"
@@ -39,10 +42,22 @@ class Settings(BaseSettings):
     realtime_workers: bool = True  # outbox 전송·상태 만료 확정 작업을 이 프로세스에서 돌릴지
     outbox_poll_seconds: float = 0.3  # NFR-01 2초 안 전달을 위한 전송 주기
     state_refresh_seconds: float = 30.0  # 시간 경과로 바뀐 상태를 확정하는 주기 (11 refresh_after_seconds와 맞춤)
-    socket_cors_origins: list[str] = []  # 화면 배포 주소가 정해지면 설정 (md_frontend/must_do.md S2)
+    # NoDecode: 환경변수 값을 JSON으로 먼저 해석하지 않게 하고 아래 변환기로 쉼표를 나눈다
+    socket_cors_origins: Annotated[list[str], NoDecode] = []  # 비우면 cors_origins를 따른다
+
+    # 브라우저 화면의 출처. 비우면 같은 출처만 허용한다. '*'는 쓰지 않는다 (md_frontend/must_do.md S2)
+    cors_origins: Annotated[list[str], NoDecode] = []
 
     # development / production. production이면 기동 시 비밀값을 검사한다
     app_env: str = "development"
+
+    @field_validator("cors_origins", "socket_cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value):
+        """CORS_ORIGINS=http://localhost:3000,http://192.168.0.5:3000 처럼 쉼표로 적을 수 있게 한다."""
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return value
 
     def check_production_secrets(self) -> None:
         if self.app_env == "production" and (self.jwt_secret in PLACEHOLDER_JWT_SECRETS or len(self.jwt_secret) < 32):

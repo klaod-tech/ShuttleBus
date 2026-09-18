@@ -46,6 +46,8 @@ services:
       # production이면 기본·짧은 JWT_SECRET으로 기동하지 않는다
       APP_ENV: ${APP_ENV:-development}
       REDIS_URL: redis://redis:6379/0
+      # 브라우저 화면의 출처. 루트 .env에 CORS_ORIGINS=http://localhost:3000 처럼 적는다
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
     ports:
       - "8000:8000"
     depends_on:

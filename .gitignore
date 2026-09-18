@@ -1,6 +1,12 @@
 # 로컬 도구·데이터
 .tools/
+
+# 비밀값·환경 파일 — 어떤 형태든 올리지 않는다 (FR-IN-08)
 .env
+.env.local
+.env.*.local
+.env.development
+.env.production
 
 # Python
 __pycache__/

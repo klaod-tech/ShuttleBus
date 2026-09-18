@@ -244,6 +244,9 @@
 | `clock_check_valid_seconds` | 시계 확인 근거가 유효한 범위 | 시험값 (비우면 `needs_review`) | `02` |
 | `pending_input_retention_hours` | 지연 입력을 채택할 것인가 | 시험값 (비우면 `needs_review`) | `02` |
 | `idempotency_retention_days` | 요청 접수증을 언제까지 보관하는가 | 확정 7일 (2026-09-18) | `01` |
+| `CORS_ORIGINS` | 브라우저 화면의 출처를 허용할지 | 배포 주소 확정 시 설정. 비우면 같은 출처만, `*`는 쓰지 않음 | `14` |
+| `SOCKET_CORS_ORIGINS` | Socket.IO 출처를 따로 둘지 | 비우면 `CORS_ORIGINS`를 따름 | `12` |
+| `ADMIN_BOOTSTRAP_ID`, `ADMIN_BOOTSTRAP_PASSWORD` | 최초 관리자 1명을 사람 없이 만들지 | 일회용. 계정 생성 후 값을 지운다 | `06` |
 | `session_review_grace_seconds` | 기록을 검토해야 하는가 | 실측 후 확정 | `13` |
 | `max_skip_stops` | 한 번에 건너뛸 수 있는 방문 수 | 시험값 | `06` |
 | `refresh_after_seconds` | 후보를 다시 조회할 때인가 | 시험값 | `11` |

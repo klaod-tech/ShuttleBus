@@ -35,7 +35,9 @@ def _manager():
 
 
 # CORS 허용 출처는 화면 배포 주소가 정해질 때 설정한다 (md_frontend/must_do.md S2). 기본은 같은 출처만
-sio = socketio.AsyncServer(async_mode="asgi", client_manager=_manager(), cors_allowed_origins=settings.socket_cors_origins or None)
+# 화면 출처는 CORS_ORIGINS를 따르고, 필요하면 SOCKET_CORS_ORIGINS로 따로 지정한다. 비우면 같은 출처만 허용
+_origins = settings.socket_cors_origins or settings.cors_origins
+sio = socketio.AsyncServer(async_mode="asgi", client_manager=_manager(), cors_allowed_origins=_origins or None)
 
 
 # ---------- 구독 (12 1·2장) ----------

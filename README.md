@@ -33,9 +33,26 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m app.jobs ensure-trips --days 14      # 회차 보충 생성
 .\.venv\Scripts\python.exe -m app.jobs mark-sessions-for-review   # 검토 대상 판정 (P5 전에는 0건)
 .\.venv\Scripts\python.exe -m app.jobs purge-records              # 보낸 전송 기록·만료된 멱등 기록 정리 (7일)
-.\.venv\Scripts\python.exe -m app.accounts create --username kim --role collector  # 입력자 계정 (비밀번호 프롬프트)
+.\.venv\Scripts\python.exe -m app.accounts create --username kim --role collector  # 계정 생성 (비밀번호 프롬프트)
+.\.venv\Scripts\python.exe -m app.accounts bootstrap                            # 최초 관리자만, 멱등 (ADMIN_BOOTSTRAP_*)
+.\.venv\Scripts\python.exe -m app.stops list                                    # 정거장 좌표·확인 상태
+.\.venv\Scripts\python.exe -m app.stops set --name 아산캠퍼스 --lat 36.7998 --lng 127.0745
 .\.venv\Scripts\python.exe -m uvicorn app.main:asgi --reload       # http://127.0.0.1:8000/docs · Socket.IO /socket.io
 ```
+
+## 프론트엔드 담당자에게 넘기는 것 (2026-09-18)
+
+화면 코드는 이 저장소에 없다. 서버 쪽 준비물만 여기 적는다.
+
+| 항목 | 값·방법 |
+|---|---|
+| API 주소 | `http://127.0.0.1:8000`, 모든 경로 앞에 `/api/v1`. 문서 화면 `/docs` |
+| 실시간 | 같은 주소의 `/socket.io` (Socket.IO). 이벤트는 `trip:state`·`notice:changed`·`schedule:changed`·`candidates:changed` |
+| CORS | 루트 `.env`에 `CORS_ORIGINS=http://localhost:3000` 후 재기동. REST·Socket.IO에 함께 적용된다 |
+| 로그인 | `POST /api/v1/auth/login` → 토큰을 `Authorization: Bearer …` 헤더로. 학생 조회는 로그인 불필요 |
+| 변경 요청 | `Idempotency-Key` 헤더 필요 (로그인·시계 확인은 예외) |
+| 브라우저 키 | 카카오 JavaScript 키는 프론트 프로젝트의 `.env.local`에 `NEXT_PUBLIC_…`으로. 서버 비밀값과 섞지 않는다 |
+| 정거장 좌표 | **현재 0/22 등록.** 좌표 없는 정거장은 마커를 만들지 않는다. 등록은 아래 좌표 명령 참조 |
 
 ## 개발용 임시 계정 (2026-09-18)
 

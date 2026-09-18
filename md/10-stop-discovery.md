@@ -62,6 +62,18 @@ https://dapi.kakao.com/v2/maps/sdk.js?appkey={JAVASCRIPT_KEY}
 
 목록은 접근성 대안이자 지도 실패 시 대체 경로다. 화면이 좁을 때도 목록이 기본이 될 수 있다.
 
+### 좌표는 어디서 오나 (2026-09-18 구현)
+
+원문 시간표에 좌표가 없어 현장 확인으로 채운다. 22개 정거장 모두 미등록 상태로 시작한다.
+
+| 경로 | 용도 |
+|---|---|
+| `GET /api/v1/admin/stops` | 좌표·확인 상태 목록 (관리자) |
+| `POST /api/v1/admin/stops/{stop_id}/location` | 좌표·지오펜스 반경·확인 상태 등록 (관리자, 멱등 키 필요) |
+| `python -m app.stops list · set · import` | 서버 CLI. 여러 개는 JSON 파일로 |
+
+위경도를 뒤집어 넣으면 남한 범위 검사에서 거절한다. **확인하지 않은 좌표를 `verified`로 올리지 않는다** — 화면은 `verification_status`로 확정·확인 필요를 구분한다. 좌표가 없는 정거장은 마커를 만들지 않고 목록으로만 제공한다.
+
 ### 무엇을 표시하나
 
 `GET /routes/{route_id}/stops`에 **`service_date`를 필수로 보낸다.** 천안역 노선은 평일과 휴일의 방문 목록이 다르다 (`04` 1장). 날짜 없이 "오늘"을 가정하면 주말에 평일 정거장을 보여준다.

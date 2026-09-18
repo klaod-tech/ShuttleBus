@@ -2,6 +2,7 @@ import contextlib
 
 import socketio
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.admin import router as admin_router
@@ -11,6 +12,23 @@ from app.api.trips import router as trips_router
 from app.config import settings
 from app.errors import install_error_handlers
 from app.realtime.cache import connect_from_settings, set_cache
+
+
+def install_cors(app: FastAPI, origins: list[str]) -> None:
+    """브라우저 화면은 다른 출처(예: http://localhost:3000)에서 API를 호출한다.
+
+    토큰을 헤더로 보내고 인증 쿠키를 쓰지 않으므로 allow_credentials는 켜지 않는다.
+    출처 목록이 비면 미들웨어를 붙이지 않는다 — 같은 출처만 허용. '*'는 쓰지 않는다.
+    """
+    if not origins:
+        return
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        max_age=600,
+    )
 
 
 class UTF8JSONResponse(JSONResponse):
@@ -32,6 +50,8 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="ShuttleBus API", version="0.1.0", default_response_class=UTF8JSONResponse, lifespan=lifespan)
 install_error_handlers(app)
+install_cors(app, settings.cors_origins)
+
 app.include_router(calendar_router)
 app.include_router(trips_router)
 app.include_router(collection_router)

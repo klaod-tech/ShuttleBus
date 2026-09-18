@@ -57,8 +57,13 @@ def template_id(day_type: str) -> uuid.UUID:
 def seed_reference_data(session: Session) -> None:
     for name in src.STOP_NAMES:
         status = "needs_interpretation" if name in src.NEEDS_INTERPRETATION_STOPS else "unverified"
-        # 좌표는 실측 전 null (04 11장)
-        session.merge(Stop(stop_id=stop_id(name), name=name, verification_status=status))
+        # 좌표는 실측 전 null (04 11장). 원문이 소유하는 것은 이름뿐이므로 재시드가 현장에서 등록한
+        # 좌표·반경·확인 상태를 덮지 않는다 — merge로 전체 열을 쓰면 등록값이 null로 되돌아간다
+        existing = session.get(Stop, stop_id(name))
+        if existing is None:
+            session.add(Stop(stop_id=stop_id(name), name=name, verification_status=status))
+        else:
+            existing.name = name
 
     for code, (name, short) in src.ROUTES.items():
         session.merge(Route(route_id=route_id(code), name=name, short_name=short, is_active=True))

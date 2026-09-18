@@ -117,7 +117,7 @@ flowchart LR
 | ① | `schedule_templates`, `trip_templates`, `scheduled_stop_times`, `source_stop_labels`, `schedule_annotations` | `04` |
 | ② | `schedule_exceptions`, `schedule_route_coverage`, `service_calendar` | `05` |
 | ② | `scheduled_trips`, `scheduled_trip_stops`, `trip_vehicles` | `05` |
-| ① | `staff_accounts` — 입력자·관리자 계정. 날짜와 무관한 기준 자료 | `06` |
+| ① | `staff_accounts(account_id, username UNIQUE, password_hash, role, is_active, created_at, updated_at)` — 입력자·관리자 계정. 날짜와 무관한 기준 자료. 계정의 유일한 출처 | `06` |
 | ③ | `collection_sessions` | `06` |
 | ③ | `location_events`, `clock_checks` | `02` |
 | ③ | `device_positions`, `device_route_assignments` | `07` |

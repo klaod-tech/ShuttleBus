@@ -47,6 +47,8 @@ class StaffAccount(Base):
     role: Mapped[str] = mapped_column(enum("role", STAFF_ROLE))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # 비밀번호·역할·사용 여부를 바꾼 시각. 계정 관리 이력의 최소 근거다
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class CollectionSession(Base):
