@@ -2,16 +2,21 @@
 
 같은 키·같은 본문 → 저장된 응답 그대로. 같은 키·다른 본문 → IDEMPOTENCY_KEY_REUSED.
 기록은 요청 처리와 같은 트랜잭션에 넣는다 — 처리가 롤백되면 키도 남지 않는다.
+
+이 기록은 '요청 접수증'이다. 관측 기록(location_events)과 달리 오래 둘 이유가 없어
+보존 기간(IDEMPOTENCY_RETENTION_DAYS, 기본 7일)이 지나면 지운다 (2026-09-18 결정).
 """
 
 import hashlib
 import json
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import text
+from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.errors import AppError, invalid
 from app.models.observation import IdempotencyRecord
 
@@ -51,3 +56,14 @@ def remember(session: Session, account_id: uuid.UUID, key: str, endpoint: str, d
             response_body=jsonable_encoder(body),
         )
     )
+
+
+def purge_expired(session: Session, now: datetime) -> int:
+    """보존 기간이 지난 접수증을 지운다. 재전송은 몇 초~몇 시간 안에 오므로 오래된 행은 쓸 데가 없다.
+
+    관측·결정 이력은 이 작업이 건드리지 않는다.
+    """
+    cutoff = now - timedelta(days=settings.idempotency_retention_days)
+    result = session.execute(delete(IdempotencyRecord).where(IdempotencyRecord.created_at < cutoff))
+    return result.rowcount or 0
+

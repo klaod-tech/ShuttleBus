@@ -19,6 +19,7 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models.calendar import ScheduledTrip
 from app.models.reference import Route
+from app.idempotency import purge_expired
 from app.realtime.cache import get_cache
 from app.realtime.outbox import drain_once, purge_sent
 from app.realtime.state import refresh_states
@@ -112,6 +113,16 @@ def restore_cache_on_start() -> int:
         return sum(1 for tid in trip_ids if cache.rebuild(session, tid))
 
 
+def purge_old_records() -> tuple[int, int]:
+    """전송이 끝난 outbox 항목과 보존 기간이 지난 멱등 기록을 지운다. 하루 한 번 돌린다."""
+    now = get_now()
+    with SessionLocal() as session:
+        sent = purge_sent(session, now)
+        keys = purge_expired(session, now)
+        session.commit()
+        return sent, keys
+
+
 async def _loop(name: str, interval: float, work):
     while True:
         try:
@@ -132,11 +143,7 @@ async def _refresh():
 
 
 async def _purge():
-    def work():
-        with SessionLocal() as session:
-            purge_sent(session, get_now())
-
-    await asyncio.to_thread(work)
+    await asyncio.to_thread(purge_old_records)
 
 
 @contextlib.asynccontextmanager
@@ -148,7 +155,7 @@ async def background_workers():
     tasks = [
         asyncio.create_task(_loop("outbox 전송", settings.outbox_poll_seconds, _drain)),
         asyncio.create_task(_loop("상태 만료 확정", settings.state_refresh_seconds, _refresh)),
-        asyncio.create_task(_loop("전송 기록 정리", 3600, _purge)),
+        asyncio.create_task(_loop("오래된 기록 정리", 3600, _purge)),
     ]
     try:
         yield

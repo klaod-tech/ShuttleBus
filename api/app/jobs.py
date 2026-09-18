@@ -2,6 +2,7 @@
 
 실행: python -m app.jobs ensure-trips [--days 14]
       python -m app.jobs mark-sessions-for-review   (13 2장, 주기 실행)
+      python -m app.jobs purge-records             (보낸 전송 기록·만료된 멱등 기록 정리)
 """
 
 import argparse
@@ -37,17 +38,27 @@ def mark_review() -> None:
         print(f"검토 대상으로 표시한 수집 세션 {len(marked)}")
 
 
+def purge_records() -> None:
+    from app.realtime.server import purge_old_records
+
+    sent, keys = purge_old_records()
+    print(f"보낸 전송 기록 {sent}건, 만료된 멱등 기록 {keys}건 삭제")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.jobs")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("ensure-trips", help="오늘부터 N일 뒤까지 회차·차량 슬롯 생성")
     p.add_argument("--days", type=int, default=14)
     sub.add_parser("mark-sessions-for-review", help="기한이 지난 수집 세션을 검토 대상으로 표시")
+    sub.add_parser("purge-records", help="보낸 전송 기록과 보존 기간이 지난 멱등 기록 삭제")
     args = parser.parse_args()
     if args.command == "ensure-trips":
         ensure_trips(args.days)
     elif args.command == "mark-sessions-for-review":
         mark_review()
+    elif args.command == "purge-records":
+        purge_records()
 
 
 if __name__ == "__main__":

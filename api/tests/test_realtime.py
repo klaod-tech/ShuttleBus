@@ -241,3 +241,32 @@ def test_redis_outage_falls_back_to_db(client, db, trip1):  # noqa: F811
         assert trip_state(client, 1)["state_version"] >= 1
     finally:
         cache_module.set_cache(previous)
+
+
+def test_idempotency_records_expire_but_recent_ones_stay(client, db, trip1, set_now):  # noqa: F811
+    """접수증은 보존 기간(기본 7일) 뒤 지운다. 관측 기록은 건드리지 않는다 (2026-09-18 결정)."""
+    from datetime import timedelta
+
+    from app.idempotency import purge_expired
+    from app.models.observation import IdempotencyRecord, LocationEvent
+
+    boss = Admin(client)
+    set_now(2026, 9, 14, 7, 50)
+    boss.post(
+        "/api/v1/admin/notices",
+        {"route_id": str(ROUTE), "notice_type": "info", "message": "안내", "expires_at": datetime(2026, 9, 14, 12, 0, tzinfo=SEOUL).isoformat()},
+    )
+    fresh = db.scalar(select(func.count()).select_from(IdempotencyRecord))
+    assert fresh >= 1
+
+    old = datetime(2026, 9, 1, 8, 0, tzinfo=SEOUL)
+    db.add(IdempotencyRecord(
+        account_id=uuid.uuid4(), idempotency_key="old", endpoint="POST /x", request_hash="h",
+        response_status=200, response_body={}, created_at=old,
+    ))
+    db.flush()
+    now = old + timedelta(days=8)
+    assert purge_expired(db, now) == 1  # 8일 전 접수증만 지운다
+    assert db.scalar(select(func.count()).select_from(IdempotencyRecord)) == fresh
+    assert purge_expired(db, datetime(2026, 9, 14, 8, 0, tzinfo=SEOUL)) == 0
+    assert db.scalar(select(func.count()).select_from(LocationEvent)) >= 0

@@ -30,6 +30,7 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m pytest                               # 시험
 .\.venv\Scripts\python.exe -m app.jobs ensure-trips --days 14      # 회차 보충 생성
 .\.venv\Scripts\python.exe -m app.jobs mark-sessions-for-review   # 검토 대상 판정 (P5 전에는 0건)
+.\.venv\Scripts\python.exe -m app.jobs purge-records              # 보낸 전송 기록·만료된 멱등 기록 정리 (7일)
 .\.venv\Scripts\python.exe -m app.accounts create --username kim --role collector  # 입력자 계정 (비밀번호 프롬프트)
 .\.venv\Scripts\python.exe -m uvicorn app.main:asgi --reload       # http://127.0.0.1:8000/docs · Socket.IO /socket.io
 ```
