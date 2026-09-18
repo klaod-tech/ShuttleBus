@@ -34,6 +34,17 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m uvicorn app.main:asgi --reload       # http://127.0.0.1:8000/docs · Socket.IO /socket.io
 ```
 
+## 개발용 임시 계정 (2026-09-18)
+
+화면 작업 전 API를 직접 눌러 보기 위한 계정이다. **개발 DB와 Docker DB에만 만들었고 저장소에는 비밀번호 해시도 넣지 않는다.**
+
+| 역할 | 아이디 | 비밀번호 |
+|---|---|---|
+| 관리자 | `admin` | `admin` |
+| 입력자 | `user` | `1234` |
+
+`APP_ENV=production`에서는 8자 미만 비밀번호로 계정을 만들 수 없다(`app/accounts.py`). 외부 공개 전에 이 두 계정을 지우거나 비밀번호를 재설정한다 — `md_frontend/must_do.md` S3·S4.
+
 ## Docker로 실행
 
 ```powershell

@@ -108,3 +108,14 @@ def test_admin_can_end_orphaned_session_then_new_collection_starts(client, trip1
 def test_notices_unknown_route_is_404(client):
     res = client.get("/api/v1/notices", params={"route_id": "00000000-0000-0000-0000-000000000000"})
     assert res.status_code == 404
+
+
+def test_dev_short_password_allowed_but_production_refuses():
+    """개발용 임시 계정(admin/admin, user/1234)은 허용, 운영에서는 8자 미만을 거부한다."""
+    from app.accounts import check_password
+
+    assert check_password("admin", "development") is None
+    assert check_password("1234", "development") is None
+    assert check_password("123", "development") is not None
+    assert check_password("admin", "production") is not None
+    assert check_password("a-long-enough-secret", "production") is None

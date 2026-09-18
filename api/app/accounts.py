@@ -11,8 +11,22 @@ import os
 from sqlalchemy import select
 
 from app.auth import hash_password
+from app.config import settings
 from app.db import SessionLocal
 from app.models.observation import StaffAccount
+
+MIN_LENGTH = 8
+DEV_MIN_LENGTH = 4
+
+
+def check_password(password: str, app_env: str) -> str | None:
+    """운영에서는 8자 이상만 허용한다. 개발에서는 시험용 짧은 비밀번호를 쓸 수 있게 경고만 남긴다.
+
+    운영 계정을 개발용 비밀번호로 만들어 두는 실수를 막는 것이 목적이다.
+    """
+    if app_env == "production":
+        return None if len(password) >= MIN_LENGTH else f"운영에서는 비밀번호가 {MIN_LENGTH}자 이상이어야 한다."
+    return None if len(password) >= DEV_MIN_LENGTH else f"비밀번호가 {DEV_MIN_LENGTH}자 이상이어야 한다."
 
 
 def main() -> None:
@@ -30,8 +44,11 @@ def main() -> None:
                 print(f"{a.username}\t{a.role}\t{'활성' if a.is_active else '비활성'}")
             return
         password = os.environ.get("SHUTTLEBUS_PASSWORD") or getpass.getpass("비밀번호: ")
-        if len(password) < 8:
-            raise SystemExit("비밀번호는 8자 이상이어야 한다.")
+        problem = check_password(password, settings.app_env)
+        if problem:
+            raise SystemExit(problem)
+        if len(password) < MIN_LENGTH:
+            print(f"경고: 개발용 짧은 비밀번호다 ({len(password)}자). 외부 공개 전에 재설정한다.")
         account = session.scalar(select(StaffAccount).where(StaffAccount.username == args.username))
         if account is None:
             account = StaffAccount(username=args.username, role=args.role, password_hash=hash_password(password))

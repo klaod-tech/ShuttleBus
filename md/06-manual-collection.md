@@ -143,7 +143,7 @@
 
 **writer_instance_id 주고받기 (구현 확정):** 새 세션은 서버가 `writer_instance_id`를 발급해 돌려준다. 앱은 로컬에 보관하고, 재시작·새로고침 때 `POST /collection-sessions`에 그 값을 실어 보내면 기존 세션을 받는다. 값이 없거나 다르면 같은 계정이어도 `SESSION_OWNERSHIP_CONFLICT`다. 관측 입력에는 항상 싣는다.
 
-**계정:** 입력자·관리자 계정은 `python -m app.accounts create --username … --role collector|admin`으로 만든다. 비밀번호는 저장소·시드에 넣지 않는다.
+**계정:** 입력자·관리자 계정은 `python -m app.accounts create --username … --role collector|admin`으로 만든다. 비밀번호는 저장소·시드에 넣지 않는다. 비밀번호는 운영(`APP_ENV=production`)에서 8자 이상이어야 하고, 개발에서는 4자 이상이면 경고와 함께 허용한다 — 화면 작업 전 시험용 계정을 위한 예외다 (2026-09-18).
 
 ### 소속 검증
 
