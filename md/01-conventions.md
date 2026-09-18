@@ -126,7 +126,7 @@
 
 - 기본 경로 `/api/v1`
 - JSON 필드와 DB 열은 `snake_case`, TypeScript 변수·함수는 `camelCase`
-- 변경 요청에는 `Idempotency-Key`를 사용한다. 없으면 422. 키는 계정별로 `idempotency_records`에 요청과 같은 트랜잭션으로 저장하고, 성공 응답만 기록한다. 시계 확인 두 요청은 매번 새 측정이므로 키를 요구하지 않는다
+- 변경 요청에는 `Idempotency-Key`를 사용한다. 없으면 422. 키는 계정별로 `idempotency_records`에 요청과 같은 트랜잭션으로 저장하고, 성공 응답만 기록한다. 로그인과 시계 확인 두 요청은 키를 요구하지 않는다
 - 관리자·입력자는 `Authorization: Bearer {access_token}`으로 인증하고 역할을 검증한다
 - **입력자 토큰 수명은 24시간**이다. 왕복 운행 중 만료를 피하기 위함이며 MVP에는 refresh 토큰을 두지 않는다. 만료 2시간 전부터 재로그인을 안내한다. 재로그인해도 로컬 대기 입력 ID는 유지한다.
 - 단말 인증은 별도 토큰·차량 배정이며 발급·회수는 Phase 2에서 설계한다 (`07-gps-detection`)

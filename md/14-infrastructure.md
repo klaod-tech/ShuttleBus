@@ -5,6 +5,8 @@
 
 기능 규칙은 해당 소유 문서를 참조하고 여기서는 배포 구성·설정·운영 실습을 정의한다. 기능별 파일 분리와 물리적 서비스 분리를 동일시하지 않는다.
 
+**현재 구현 기준 (2026-09-18):** 아래 단계별 구성은 초기 설계다. 현재는 postgres·redis·api와 초기화 작업으로 구성되며 Socket.IO는 Python API 프로세스에 포함된다. 별도 Node.js realtime 서비스와 web은 아직 없다. 실제 연동은 [12 구현 메모](12-realtime-delivery.md)와 루트 docker-compose.yml을 따른다.
+
 ---
 
 ## 1. 왜 K8s인가
