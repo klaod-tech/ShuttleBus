@@ -1,14 +1,52 @@
-# 화면 구성 합의 추가 (2026-09-18)
+# 변경 기록
 
-Transit 앱·PC 조합을 채택하고 Citymapper는 제외했다. 기본 지도, 모바일 하단 카드·PC 옆 패널, 왼쪽 위 햄버거 메뉴, 검색·시간표, 메뉴 맨 아래 프로필 이미지와 설정 진입을 반영했다. 기본 레이아웃 구현을 시작할 수 있으며 미완료 API와 지도 자료는 별도 연동 준비 항목이다.
+큰 변화만 적는다 — 설계 문서(md) 내용, 실제 기능 처리, 데이터 활용이 바뀐 것. 같은 항목을 다시 바꾸면 이전 기록을 지우고 최신으로 대체한다. 3일이 지난 기록은 각 문서 본문에 이미 반영되어 있으므로 정리한다 (2026-09-18 규칙).
 
-# 화면 문서 정리·연동 점검 (2026-09-18)
+# 2026-09-18
 
-- 끊긴 안내 문장, 최초 노선, 분 단위 표시의 미확정 상태를 정리했다.
-- 개발 로그인은 기존 admin/admin·user/1234로 진행하며 피그마 사용은 필수가 아님을 명시했다.
-- 재전송의 동일 요청 키 유지·본문 변경 시 새 키 발급을 통일하고 06에 로컬 큐·오류별 재시도 절차를 추가했다. 화면 코드는 아직 없다.
-- 카드 뒤로 이동, 공지 필터, 로그인·시계 확인의 요청 키 예외, 회차 취소 시 완료 슬롯 보존 설명을 기존 코드에 맞췄다.
-- [화면 연동 점검](../md_frontend/04-review.md)에 응답 부족과 후속 작업·검증 한계를 기록했다. 서버 코드·DB·계정은 변경하지 않았다.
+## 서버 — 새 기능·계약 변경
+
+| 무엇 | 어떻게 | 영향 |
+|---|---|---|
+| **정거장 단독 조회 API** | `GET /api/v1/stops/{stop_id}/upcoming?route_id&service_date`. 방향은 합쳐서 가까운 2개 + 행마다 `next_stop_name`·`terminal_stop_name`. 대표 시각은 같은 출처 안에서 **도착 → 출발** (후보 검색의 출발 우선과 반대). `upcoming(≤2)`·`attention`·`reference_timetable`·`empty_reason` 네 갈래 | `11` 11장 신설, FR-BC-23~28. `app/candidates/upcoming.py`, `app/api/stop_upcoming.py`. 화면의 정거장 카드가 이것만 쓴다 |
+| **visits[] 실측 시각** | `observed_arrival_at`·`observed_departure_at`·`observed_passed_at` 추가. 이 방문·이 차량의 유효 관측만, 예측 아님 | `03` 5장, FR-ST-14. **기존 상태 스냅샷과 내용이 달라져 배포 후 첫 조회에서 회차마다 `state_version`이 한 번 오른다** |
+| **로그인 시도 제한** | 연속 5회 실패 시 15분 잠금 `LOGIN_LOCKED`(429, retryable=true). 잠긴 동안은 맞는 비밀번호도 거절. 없는 아이디는 잠그지 않고 401만 | `01` 5장·오류 코드·설정 인덱스(`login_max_failures`·`login_lockout_seconds`), `14` 4장. 마이그레이션 **0007** (`staff_accounts.failed_login_count`·`locked_until`) |
+| **토큰 즉시 차단** | `staff_accounts.token_not_before`(0007). 비밀번호 재설정(`accounts create`)과 새 CLI `accounts revoke-tokens`가 갱신하고, 그 이전에 발급된 토큰은 만료 전이라도 401 | IMPROVEMENTS 한계 1·2 해결. 화면은 이 401에도 대기 큐를 유지한다 |
+| **경로 자료 파이프라인** (`PLAN-route-data.md`) | ① `samples/stops-provisional.json` 임시 좌표 7개(`needs_interpretation`, verified 덮지 않음) · ② `python -m app.survey` — GPX 적재(해시 멱등)·이상치·Douglas-Peucker 단순화·정거장 구간 분할(첫 트랙은 `unverified`)·두 번째 트랙 `verify`·시험용 `gpx-demo` · ③ `GET /routes/{id}/path` + `web/` 폴리라인 (verified 실선, 그 외 점선 "미검증 경로", 행 없으면 선 없음) | `10` 5장 표시 규칙, IMPROVEMENTS 등록 절차에 명령. **가짜 자료로 verified를 만들지 않는다.** P6 수신은 Traccar Client(OsmAnd 형식)로 다음 작업 |
+| **작업 지침 `CLAUDE.md`** | 문서 우선·멈춰서 허락받는 것·변경 기록 규칙·검증·자료 원칙·코드 관례. 채팅 설명은 문서로 옮긴다 | 저장소 루트 |
+| 중복·불일치 정리 (2차 검토) | `_local` 5중 정의 → `timeutil.to_seoul` · `admin.stop_out` → `admin_stop_out` (build.stop_out과 이름 충돌) · `arrived_freshness_seconds`·`refresh_after_seconds` 모듈 상수 → `Settings` (14가 ConfigMap이라 함) · `01` 설정 인덱스에 코드에만 있던 5개 등재 · `CACHE_REBUILDING` 미구현 표시 · PLAN의 `/device-positions` → 07의 `/device/positions` · `app.survey --version` | 기계 대조 결과: 오류 코드 코드↔문서 불일치 0, API 경로 불일치 0 (P6 `/device/positions`만 문서 선행) |
+| 회차 보충 루프 | API 프로세스가 하루 한 번 오늘부터 14일치 회차를 보충 (`realtime/server.py`). K8s CronJob 전까지의 대체 | IMPROVEMENTS 한계 4 완화 — 학생 첫 조회가 회차를 생성하는 쓰기가 되지 않는다 |
+| CORS | `CORS_ORIGINS`(쉼표 구분)로 REST·Socket.IO 함께 허용. `SOCKET_CORS_ORIGINS`로 따로 지정 가능. `*` 금지 | must_do S2, `.env.example` |
+| 개발용 임시 계정 | `admin/admin`·`user/1234`. 개발 DB에만. `APP_ENV=production`은 8자 미만 거부 | **공개 전 재설정** (must_do S3) |
+| 정거장 좌표 등록 | `GET/POST /admin/stops`, CLI `app.stops set`. 재시드가 등록 좌표를 지우지 않는다 | 현재 0/22 등록 |
+| 멱등 기록 정리 | 보존 7일. `app.jobs purge-records`와 서버 내부 1시간 주기 | `01` 설정 인덱스 |
+
+## 화면 — web/ 골격 착수
+
+Next.js 15 · TypeScript, `web/`. 첫 화면만: 노선·날짜 선택, 카카오맵(**정거장 점만 — 경로선·직선 연결 없음**), 정거장 목록(좌표 없으면 '좌표 확인 필요'), 정거장 카드(위 조회 API). 시각 표시는 `md_frontend/02` 규칙 — 1시간 미만 'n분 뒤', 이상 HH:mm, 1분 미만 '1분 이내', 분 내림은 임시. Compose에 `web` 서비스(빌드 인자로 `NEXT_PUBLIC_*`). 남은 화면은 `md_frontend/must_do.md`.
+
+화면 방향 합의: Transit 앱·PC 조합, Citymapper 제외. 기본 지도, 모바일 하단 카드·PC 옆 패널, 왼쪽 위 햄버거, 검색·시간표, 메뉴 맨 아래 프로필. 피그마는 필수 아님. 최초 노선 천안아산역.
+
+## 문서 정합
+
+00 헤더 v7.10 · ROADMAP P2 "직선 연결" 문구를 must_do F8(직선도 없음)에 맞춤 · IMPROVEMENTS 한계 1·2·4·7 해결 표시 · `md_frontend/04-review` 5행 해결 · must_do S1·S2·S4·F1·F8 갱신 · `.env.example`에 `SOCKET_CORS_ORIGINS`·web 항목 · 01 §6 상태값 인덱스에 `end_reason`·`decision`·`action`·`reason` 등재.
+
+## 검증 상태
+
+작성 세션은 DB·venv에 접근하지 못해 문서 기계 검사(링크 0 깨짐, FR 270개 중복·공백 없음)만 했다.
+**2026-09-20에 서버 검증을 마쳤다.**
+
+| 항목 | 결과 |
+|---|---|
+| `alembic upgrade head` | 0007까지 적용됨 |
+| `pytest` | **205개 통과** (기존 185 + 신규 20: `test_stop_upcoming`·`test_auth_hardening`·`test_survey`) |
+| `web` 타입 검사 | **아직 못 했다** — `npm install` 필요. 화면은 외부 담당이라 대기 |
+
+```powershell
+cd api; $env:PYTHONUTF8='1'; .\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m pytest
+cd ..\web; npm install; npm run typecheck        # package-lock.json 생기면 함께 커밋
+```
 
 # v7.10 변경 기록 (2026-09-15)
 
@@ -95,151 +133,7 @@ Transit 앱·PC 조합을 채택하고 Citymapper는 제외했다. 기본 지도
 
 ---
 
-# v7.9 변경 기록
-
-v7.8 최종 검증에서 나온 6건을 처리했다. **새 규칙은 없고 v7.8이 만든 참조의 도착지를 만들었다.**
-
-## 끊긴 참조 — 2건
-
-| 무엇 | 어떻게 |
-|---|---|
-| 02가 "13의 별도 restore 계약"을 참조하는데 13에 없었음 | **13 15장 오취소 복구** 신설. 취소 직전 상태로 복귀, 유효 관측 중복 시 `RESTORE_CONFLICT` |
-| 13의 `reject`가 09 무효화·08 영향 갱신을 트리거하지 않음 | reject를 같은 트랜잭션에서 `travel_time_invalidations` 등록 + 영향 회차 갱신으로 확장 |
-
-## 구현 불가 규칙 — 1건
-
-| 무엇 | 어떻게 |
-|---|---|
-| `auto_promote_enabled`가 ConfigMap인데 08은 트랜잭션 안에서 false 전환을 요구 | **DB 런타임 설정으로 이동.** ConfigMap은 초기값만. 재배포로 되살아나지 않는다 |
-
-## 순서 미정 — 1건
-
-| 무엇 | 어떻게 |
-|---|---|
-| `terminal_boundary_min_points` 미정 동안 마지막 세션이 `service_day_closed`로만 닫히는데 배치 순서가 없음 | 14 3장에 **마감 → 재계산 → 승격** 순서 고정. FR-IN-14 |
-
-## 이름·등재 — 2건
-
-| 무엇 | 어떻게 |
-|---|---|
-| 13은 `cancel_reason=review_rejected`, 09는 `reason=observation_rejected` | 양쪽 다 `observation_cancelled` / `observation_rejected` |
-| 01 6장에 `end_reason`·`decision`·`action`·`reason` 4개 enum 누락 | 등재. 15 층 지도에 `travel_time_invalidations`·`model_decisions` 등재 |
-
-## 원문 해석 — 1건
-
-| 무엇 | 어떻게 |
-|---|---|
-| 온양 순2의 주은아파트를 04는 `미방문`, 05는 `기점 이전`이 아니라고 하고, FR-RD-10은 둘 다 허용 | **기점 이전으로 확정.** 04 자신의 판별 근거("뒤쪽 칸에 시각이 있음")가 이미 그렇게 말하고 있었고 예시가 틀렸다 |
-
-**전체 회차표를 기계로 훑은 결과 `미방문`에 해당하는 X는 한 건도 없다.** 모든 X가 그 행의 첫 시각보다 앞에 있다. 미방문 처리용 열이나 별도 패턴은 지금 필요 없고, 나중에 나오면 별도 패턴으로 등록한다. FR-RD-23을 회귀 검사로 남겼다.
-
-IMPROVEMENTS 등록 절차 5단계에 "정차 구간 없으면 건너뛴다" 분기를 추가했다.
-
-요구사항 ID 263개. 신설은 FR-OP-22~26, FR-IN-14~15, FR-RD-23.
-
-### 병합 주의
-
-13·14·15는 v7.7 사본 위에서 고쳤다. v7.8에서 이 세 문서를 직접 수정했다면 **위 변경만 옮겨 붙이고 v7.8 내용을 유지한다.**
 
 ---
 
-# v7.7 변경 기록
-
-전체 정독 검수에서 나온 결함을 고쳤다. **대부분이 v7.4~v7.6에서 새 규칙을 넣으며 기존 계약과 맞춰보지 않아 생긴 것이다.**
-
-## 계약 충돌 — 4건
-
-| 무엇 | 어떻게 |
-|---|---|
-| 07이 이탈 중 ETA를 주라 하고 08은 `position_unverified`면 null이라 함 | **08을 따른다.** 07은 예측 미제공, 근거 자체는 폐기하지 않고 복귀 시 재사용 |
-| 커버리지 게이트가 `estimate` 제외를 반영 안 해 무력 | 제외 후 집합으로 비교하고 **개수가 아니라 포함 관계**로 판정 |
-| `terminal_departed`가 `arrived`를 요구하는데 `dwell_min_seconds` 미정이라 죽은 규칙 | 조건을 **종점 반경 진입 후 이탈**로 완화 |
-| 종료 사유가 한 좌표에서 동시 성립하는데 우선순위 없음 | 표 순서를 평가 순서로 선언. **경계 좌표는 새 세션 소속** |
-
-## 빠진 정의 — 6건
-
-| 무엇 | 어떻게 |
-|---|---|
-| `end_reason`을 저장할 열이 06에 없음 | `collection_sessions`에 열 추가 |
-| 승격 후보 `prediction_models` 행을 아무도 안 만듦 | 08이 통계 배치 직후 `draft` 행 생성. 최신 완전 스냅샷 하나만 |
-| 이탈 게이트가 확정 전 좌표를 못 막음 | **판정 보류 창**으로 재정의. `detection_delay_seconds`와 긴 쪽 대기 |
-| `location_events.trip_vehicle_id` 저장 여부 미결 | 열로 확정, 부분 유일 인덱스로 강제 |
-| 실시간 역행 / 지연 보충 경계값 없음 | `realtime_input_window_seconds` 신설. 거절 검사가 보관 판정보다 우선 |
-| 09 표본 조건표에 세션 종료 조건 누락, '완결 구간' 미정의 | 표에 행 추가, 2장에서 용어 정의 |
-
-## 그 밖
-
-- 15의 **참조 방향이 반대**였다. FR-DM-01이 FK 방향 검사라 검사 자체가 뒤집힐 뻔했다. 참조는 아래→위, 쓰기는 자기 층으로 분리해 서술
-- 15의 `sort_at` 출처가 `eta_predictions` 하나뿐이었다 → 11의 세 출처 반영
-- 15가 `manual_trace`를 "공개 사용 제외"로 적었으나 10은 라벨 달고 표시 → "공개 예측 계산에서 제외"로 정정
-- 08 미제공 사유 10개의 우선순위를 **표 순서로 선언**
-- 13의 "관리자가 등록한 회차 검토 기한"이 어디에도 없었다 → 구간 소요시간이 없으면 검토 대상으로 올리지 않는 것으로 단순화
-- 학생회관 `[13:30, 15:30]`의 **비교 시각**을 캠퍼스 출발 공시 시각으로 확정. `[19:30, 24:00)`도 경계 명시. 휴일은 확인 전까지 미표시
-- 07의 후보 없음/중복 처리 모순, `route_rejoin_min_points` 본문·표 불일치, 존재하지 않는 "4장 5단계" 참조 정정
-- 09 최소 측정을 **세 밴드 각각** 5회로 (`peak_evening`이 빠져 있었다)
-- 00이 복제하던 숫자 제거, **04의 결번 4장 복구** — 노선 구성을 4장, 시간표 원문을 5장으로 올리고 이후를 밀며 외부 참조 5곳도 함께 수정
-
-FR 총 239개. 링크·중복·번호 공백·표 순서·**장 상호참조**·끊긴 문장 0.
-
----
-
-# v7.6 변경 기록
-
-조사 도구를 **BasicAirData GPS Logger**로 확정하고, 그 앱의 기록 방식에 맞춰 조사 자료의 자리와 경로 이탈 판정을 넣었다. 변경 이유와 버린 대안은 [변경 근거](RATIONALE-v7.6.md)에 따로 적었다.
-
-| 문서 | 변경 |
-|---|---|
-| [04 기준](04-reference-data.md) | **조사 트랙 3테이블 신설** — `survey_tracks`·`survey_track_points`·`survey_annotations`. 정거장 좌표는 표시 지점이 아니라 정차 구간에서 정한다. FR-RD-16~19 |
-| [07 GPS](07-gps-detection.md) | **경로 이탈 게이트 신설** — 폴리라인 최단거리 판정, 설정값 3개, 이탈 중 이벤트 생성 금지. `accuracy_m`을 조사 트랙에서 못 얻을 수 있다는 단서. FR-GPS-19~23 |
-| [01 규약](01-conventions.md) | 이탈 설정값 3개 등재 |
-| [15 데이터 구조](15-data-model.md) | **⓪ 조사 층** 추가, 관계도 반영, FR-DM-09~10 |
-| [개선사항](IMPROVEMENTS.md) | 녹화 설정 정정(**간격 3초**·거리 필터·Annotate), 적재 절차 7단계, 두 트랙 대조 |
-
-이탈은 **새 공개 상태를 만들지 않고** 03의 기존 `information_status = unavailable` / `position_unverified`로 흘려보낸다. 학생에게는 좌표가 오래된 것과 경로를 벗어난 것이 같은 의미이기 때문이다.
-
-이전 안내의 **"기록 간격 1초"는 정정했다.** 이 앱은 최소 3초다. 대신 멈추고 출발하는 순간을 필터와 무관하게 자동 기록하므로 정차 구간은 더 정확하다.
-
-FR 총 239개. 링크·중복·번호 공백·표 순서·끊긴 문장 0.
-
----
-
-# v7.5 변경 기록
-
-v7.4 검수에서 나온 결함을 고치고, 통계 스냅샷의 **승격 주체**를 정했다. 시간표 원문과 기능 범위는 변경하지 않았다.
-
-## 새로 정한 것 — 모델 승격
-
-09가 표본 추가·취소만으로도 새 `stats_model_version`을 발급하도록 강화되면서, **누가 언제 그 스냅샷을 활성화하는지가 비어 있었다.** 그대로 두면 표본이 매일 쌓여도 공개 예측은 첫 스냅샷에 고정된다.
-
-| 문서 | 변경 |
-|---|---|
-| [08 예측](08-prediction.md) | 자동 승격 게이트 3종(경로 불변·스냅샷 완전·커버리지 비퇴행), 실행 시점, `auto_promote_enabled` 스위치, 롤백 절차, 함수 3개, FR-PR-19~23 |
-| [13 운영](13-operations.md) | 승격 보류 목록 화면과 사유별 처리. 평상시 비어 있는 목록 |
-| [14 인프라](14-infrastructure.md) | CronJob에 모델 승격 추가, ConfigMap, 승격 결과 관찰, FR-IN-13 |
-| [01 규약](01-conventions.md) | `auto_promote_enabled` 등재 |
-| [09 통계](09-travel-statistics.md) | 승격 판단은 08 소유임을 명시, 직전 활성 스냅샷 보존 |
-| [15 데이터 구조](15-data-model.md) | 발급과 사용의 분리, FR-DM-08 |
-
-커버리지 비퇴행 게이트가 핵심이다. 09 9장이 표본이 모두 취소된 구간을 새 스냅샷에서 제외하므로, 오입력 몇 건을 취소하면 구간이 사라진다. 그대로 승격하면 어제까지 제공하던 ETA가 오늘 `missing_baseline`이 된다.
-
-## 고친 것
-
-| 문서 | 내용 |
-|---|---|
-| [03 상태](03-state-contract.md) | 7장 근거 문구의 파손된 문장 복구 ("시간표 근거이면") |
-| [00 개요](00-overview.md) | v7.2 → v7.5, 문서 수 15 → 16, `arrived_freshness_seconds`를 미확정에서 시험값으로 이동, 통계 스냅샷 보존 항목 추가 |
-| 03·04·14 | 검증 기준 표 안의 FR 번호 순서 정렬 |
-
-## v7.4에서 바로잡힌 것 (반영 유지)
-
-앞선 검수가 세 가지를 정정했고 그대로 둔다.
-
-- `observation_grace_seconds` 2400초의 근거 — 최장 구간은 30분이 아니라 **천안터미널 편도 정체 시 40분**(`04` 6장)이므로 여유가 없는 시험값이다.
-- `sort_at` 우선순위 — 정보 출처(도착 관측 → 예측 → 공시)를 먼저 고르고 사건 우선순위는 그 안에서만 적용한다. 공시 출발이 유효 도착 예측을 덮지 않는다.
-- `affected_trip_ids` — 참고 정보이며 조회를 생략하는 필터가 아니다. 신규 회차·운행 재개·정책 정정으로 목록에 없던 회차가 후보가 될 수 있다.
-
-## 검수
-
-링크 무결성 OK, FR ID 228개 중복·접두사 오류·번호 공백·표 순서 어긋남 0, 함수명 76개 중복 0, 끊긴 문장 0, 볼드 미종결 0.
-
-이번 묶음에는 IMPROVEMENTS.md와 REVIEW-VERIFICATION.md가 포함되지 않았다. IMPROVEMENTS는 v7.3 사본을 그대로 유지한다.
+v7.9 이전 기록(v7.5~v7.9)은 2026-09-18에 정리했다. 그 변경은 모두 각 문서 본문에 반영되어 있고, 근거는 [RATIONALE-v7.6](RATIONALE-v7.6.md)에 남아 있다.

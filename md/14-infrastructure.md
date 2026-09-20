@@ -97,7 +97,7 @@ minikube에 올린다. **학습·시험 환경이며 실제 공개 운영 환경
 | 이름 | 종류 | 소유 문서 |
 |---|---|---|
 | `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` | Secret | `01` |
-| `ACCESS_TOKEN_TTL_SECONDS` | ConfigMap | `01` |
+| `ACCESS_TOKEN_TTL_SECONDS`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCKOUT_SECONDS` | ConfigMap | `01` |
 | `observation_grace_seconds` | ConfigMap | `08` |
 | `auto_promote_enabled`, `auto_promotion_blocked` | **DB 런타임 설정** (초기값만 ConfigMap) | `08`·`14` |
 | `arrived_freshness_seconds`, `refresh_after_seconds` | ConfigMap | `11` |

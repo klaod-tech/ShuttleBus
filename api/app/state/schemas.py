@@ -40,6 +40,10 @@ class VisitOut(BaseModel):
     prediction_basis: str | None
     basis_observation: BasisObservationOut | None
     unavailable_reason: str | None
+    # 이 방문·이 차량의 유효 실측 시각 (03 5장, 2026-09-18 추가). 없으면 null. 예측이 아니라 지난 기록 표시용
+    observed_arrival_at: datetime | None = None
+    observed_departure_at: datetime | None = None
+    observed_passed_at: datetime | None = None
 
 
 class LastPositionOut(BaseModel):

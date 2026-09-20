@@ -12,7 +12,7 @@ from app.calendar.resolve import running_trips
 from app.calendar.service import daterange, load_calendar_data, resolve_service_calendar
 from app.db import get_session
 from app.errors import check_service_date, invalid, not_found
-from app.models.reference import Route, RoutePattern, RouteStop, RouteVersion, Stop, TripTemplate
+from app.models.reference import Route, RoutePathPoint, RoutePattern, RouteStop, RouteStopSegment, RouteVersion, Stop, TripTemplate
 
 router = APIRouter(prefix="/api/v1")
 
@@ -115,6 +115,15 @@ def get_service_calendar(
     )
 
 
+def _active_version_ids(session: Session, data, res, route_id: uuid.UUID) -> set[uuid.UUID]:
+    """그 날짜에 실제로 운행하는 회차들이 쓰는 경로 버전 (05 7장)."""
+    running_ids = {
+        t.trip_template_id
+        for t in running_trips(data.trips.get((res.applied_schedule_template_id, route_id), []), res.effective_service_weekday)
+    }
+    return set(session.scalars(select(TripTemplate.route_version_id).where(TripTemplate.trip_template_id.in_(running_ids))))
+
+
 @router.get("/routes/{route_id}/stops", response_model=RouteStopsOut)
 def get_route_stops(
     route_id: uuid.UUID,
@@ -146,17 +155,7 @@ def get_route_stops(
 
     patterns: list[PatternStopsOut] = []
     if res.schedule_status == "available":
-        running_ids = {
-            t.trip_template_id
-            for t in running_trips(
-                data.trips.get((res.applied_schedule_template_id, route_id), []), res.effective_service_weekday
-            )
-        }
-        version_ids = set(
-            session.scalars(
-                select(TripTemplate.route_version_id).where(TripTemplate.trip_template_id.in_(running_ids))
-            )
-        )
+        version_ids = _active_version_ids(session, data, res, route_id)
         if route_version_id is not None:
             version_ids &= {route_version_id}
         rows = session.execute(
@@ -205,3 +204,100 @@ def get_route_stops(
         schedule_reason=res.reason,
         patterns=patterns,
     )
+
+
+# ---------- 경로 폴리라인 (04 1장, 10 5장, PLAN-route-data ③) ----------
+
+
+class PathSegmentOut(BaseModel):
+    from_route_stop_id: uuid.UUID
+    to_route_stop_id: uuid.UUID
+    path_from_seq: int
+    path_to_seq: int
+    distance_m: float | None
+    path_source: str
+    verification_status: str
+
+
+class PatternPathOut(BaseModel):
+    route_pattern_id: uuid.UUID
+    pattern_code: str
+    route_version_id: uuid.UUID
+    # 행이 없으면 null. 화면은 manual_trace를 '추정 경로'로 표시한다 (10 5장)
+    path_source: str | None
+    point_count: int
+    points: list[list[float]]  # [[lat, lng], …] path_seq 순
+    segments: list[PathSegmentOut]
+    # verified: 모든 구간 verified / partial: 일부 / unverified: 구간은 있으나 verified 없음 / none: 경로 행 없음
+    verification: str
+
+
+class RoutePathOut(BaseModel):
+    route_id: uuid.UUID
+    service_date: date
+    schedule_status: str
+    schedule_reason: str | None
+    patterns: list[PatternPathOut]
+
+
+@router.get(
+    "/routes/{route_id}/path",
+    response_model=RoutePathOut,
+    summary="그 날짜 패턴별 경로 폴리라인",
+    description="route_path_points가 비어 있으면 points=[]·verification=none 이다. 화면은 그때 아무 선도 긋지 않는다 (직선 연결도 금지).",
+)
+def get_route_path(
+    route_id: uuid.UUID,
+    service_date: date = Query(...),
+    session: Session = Depends(get_session),
+):
+    _route_or_404(session, route_id)
+    check_service_date(service_date)
+    data = load_calendar_data(session)
+    res = resolve_service_calendar(session, route_id, service_date, data=data)
+    session.commit()
+
+    patterns: list[PatternPathOut] = []
+    if res.schedule_status == "available":
+        version_ids = _active_version_ids(session, data, res, route_id)
+        rows = session.execute(
+            select(RouteVersion, RoutePattern)
+            .join(RoutePattern, RoutePattern.route_pattern_id == RouteVersion.route_pattern_id)
+            .where(RouteVersion.route_version_id.in_(version_ids))
+            .order_by(RoutePattern.pattern_code)
+        ).all()
+        for version, pattern in rows:
+            points = session.scalars(
+                select(RoutePathPoint).where(RoutePathPoint.route_version_id == version.route_version_id).order_by(RoutePathPoint.path_seq)
+            ).all()
+            segments = session.scalars(
+                select(RouteStopSegment).where(RouteStopSegment.route_version_id == version.route_version_id).order_by(RouteStopSegment.path_from_seq)
+            ).all()
+            if not points:
+                verification = "none"
+            elif segments and all(s.verification_status == "verified" for s in segments):
+                verification = "verified"
+            elif any(s.verification_status == "verified" for s in segments):
+                verification = "partial"
+            else:
+                verification = "unverified"
+            patterns.append(
+                PatternPathOut(
+                    route_pattern_id=pattern.route_pattern_id,
+                    pattern_code=pattern.pattern_code,
+                    route_version_id=version.route_version_id,
+                    path_source=points[0].path_source if points else None,
+                    point_count=len(points),
+                    points=[[p.latitude, p.longitude] for p in points],
+                    segments=[
+                        PathSegmentOut(
+                            from_route_stop_id=s.from_route_stop_id, to_route_stop_id=s.to_route_stop_id,
+                            path_from_seq=s.path_from_seq, path_to_seq=s.path_to_seq, distance_m=s.distance_m,
+                            path_source=s.path_source, verification_status=s.verification_status,
+                        )
+                        for s in segments
+                    ],
+                    verification=verification,
+                )
+            )
+    return RoutePathOut(route_id=route_id, service_date=service_date, schedule_status=res.schedule_status, schedule_reason=res.reason, patterns=patterns)

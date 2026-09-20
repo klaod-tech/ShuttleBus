@@ -10,21 +10,17 @@ from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import Principal, authenticate, issue_token, require_role
+from app.auth import AccountLocked, Principal, authenticate, issue_token, require_role
 from app.clock import get_now
 from app.db import get_session
 from app.errors import AppError, not_found
 from app.idempotency import remember, replay, request_hash, require_key
 from app.models.observation import ClockCheck, CollectionSession, LocationEvent
 from app.observation import ingest
-from app.timeutil import SEOUL
+from app.timeutil import to_seoul as _local
 
 router = APIRouter(prefix="/api/v1")
 staff = require_role("collector", "admin")
-
-
-def _local(dt: datetime | None) -> datetime | None:
-    return dt.astimezone(SEOUL) if dt else None
 
 
 # ---------- 스키마 ----------
@@ -227,7 +223,11 @@ def _jsonable(payload):
 
 @router.post("/auth/login", response_model=LoginOut, summary="입력자·관리자 로그인")
 def login(body: LoginIn, session: Session = Depends(get_session), now: datetime = Depends(get_now)):
-    account = authenticate(session, body.username, body.password)
+    try:
+        account = authenticate(session, body.username, body.password, now)
+    except AccountLocked as locked:
+        wait = max(1, int((locked.until - now).total_seconds() + 59) // 60)
+        raise AppError(429, "LOGIN_LOCKED", f"로그인 시도가 너무 많습니다. 약 {wait}분 뒤 다시 시도해 주세요.", retryable=True) from None
     if account is None:
         raise AppError(401, "AUTH_REQUIRED", "아이디 또는 비밀번호가 올바르지 않습니다.")
     token, ttl = issue_token(account, now)

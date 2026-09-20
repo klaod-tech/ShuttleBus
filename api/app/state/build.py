@@ -7,11 +7,7 @@ from app.observation.rules import EventView
 from app.state.bundle import TripBundle, VisitRow
 from app.state.schemas import BasisObservationOut, StopOut, TripStateOut, VehicleOut, VisitOut
 from app.state.visits import VisitState, evaluate_vehicle_visits, information_status_for
-from app.timeutil import SEOUL
-
-
-def _local(dt: datetime | None) -> datetime | None:
-    return dt.astimezone(SEOUL) if dt else None
+from app.timeutil import SEOUL, to_seoul as _local
 
 
 def stop_out(visit: VisitRow) -> StopOut:
@@ -57,6 +53,9 @@ def visit_out(bundle: TripBundle, state: VisitState) -> VisitOut:
         prediction_basis=state.prediction_basis,
         basis_observation=observation_out(bundle, state.basis_observation),
         unavailable_reason=state.unavailable_reason,
+        observed_arrival_at=_local(state.arrived_observed_at),
+        observed_departure_at=_local(state.departed_observed_at),
+        observed_passed_at=_local(state.passed_observed_at),
     )
 
 

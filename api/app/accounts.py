@@ -18,7 +18,8 @@ import os
 
 from sqlalchemy import select
 
-from app.auth import hash_password
+from app.auth import hash_password, revoke_tokens
+from app.clock import get_now
 from app.config import settings
 from app.db import SessionLocal
 from app.models.observation import StaffAccount
@@ -43,6 +44,8 @@ def upsert(session, username: str, role: str, password: str) -> str:
         session.add(StaffAccount(username=username, role=role, password_hash=hash_password(password)))
         return "생성"
     account.role, account.password_hash, account.is_active = role, hash_password(password), True
+    revoke_tokens(session, account, get_now())  # 재설정 전에 발급된 토큰은 즉시 무효 (IMPROVEMENTS 한계 2)
+    account.failed_login_count, account.locked_until = 0, None
     return "재설정"
 
 
@@ -72,6 +75,8 @@ def main() -> None:
     create.add_argument("--username", required=True)
     create.add_argument("--role", choices=["collector", "admin"], required=True)
     sub.add_parser("list", help="계정 목록")
+    revoke = sub.add_parser("revoke-tokens", help="발급된 토큰 전부 무효화 (강제 로그아웃). 비밀번호는 그대로")
+    revoke.add_argument("--username", required=True)
     sub.add_parser("bootstrap", help="ADMIN_BOOTSTRAP_ID/PASSWORD로 최초 관리자 1명 생성 (멱등)")
     args = parser.parse_args()
 
@@ -84,6 +89,14 @@ def main() -> None:
             message = bootstrap(session)
             session.commit()
             print(message)
+            return
+        if args.command == "revoke-tokens":
+            account = session.scalar(select(StaffAccount).where(StaffAccount.username == args.username))
+            if account is None:
+                raise SystemExit(f"계정이 없다: {args.username}")
+            revoke_tokens(session, account, get_now())
+            session.commit()
+            print(f"토큰 무효화: {args.username} — 이전 로그인은 전부 다시 해야 한다")
             return
         password = os.environ.get("SHUTTLEBUS_PASSWORD") or getpass.getpass("비밀번호: ")
         problem = check_password(password, settings.app_env)

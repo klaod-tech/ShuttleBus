@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-ARRIVED_FRESHNESS_SECONDS = 180  # 시험값 (11 3장)
+from app.config import settings
 
 # 실시간 근거를 무효로 만드는 사유. 이때는 미래 공시값이 있어도 정상 추천으로 되살리지 않는다 (11 3장 7)
 CONTRARY_REASONS = {"stale_observation", "prediction_expired", "position_unverified", "awaiting_departure"}
@@ -47,7 +47,8 @@ def _published(c: CandidateInput) -> tuple[datetime, str] | None:
     return None
 
 
-def classify(c: CandidateInput, now: datetime, freshness_seconds: int = ARRIVED_FRESHNESS_SECONDS) -> Classification:
+def classify(c: CandidateInput, now: datetime, freshness_seconds: int | None = None) -> Classification:
+    freshness_seconds = settings.arrived_freshness_seconds if freshness_seconds is None else freshness_seconds
     # 2. 완료·취소
     if c.trip_operation_status in ("completed", "cancelled") or c.vehicle_operation_status in ("completed", "cancelled"):
         return Classification("excluded", excluded_because="operation_ended")

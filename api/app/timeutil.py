@@ -12,6 +12,11 @@ MIN_SERVICE_DATE = date(2020, 1, 1)
 MAX_SERVICE_DATE = date(2100, 12, 31)
 
 
+def to_seoul(dt: datetime | None) -> datetime | None:
+    """응답용 서울 시각. None은 그대로. (여러 모듈이 각자 _local을 두던 것을 2026-09-18에 한 곳으로 모았다)"""
+    return dt.astimezone(SEOUL) if dt else None
+
+
 def today_seoul(now: datetime | None = None) -> date:
     if now is None:
         from app.clock import get_now

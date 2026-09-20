@@ -119,7 +119,18 @@ https://dapi.kakao.com/v2/maps/sdk.js?appkey={JAVASCRIPT_KEY}
 
 정거장을 직선으로 이으면 **'정거장 연결선'으로 표시한다.** 실제 주행 경로로 오인시키지 않는다.
 
-실제 경로를 그리려면 별도로 확인한 노선 경로 좌표가 필요하다. 그 자료는 `route_path_points`에 있으며(`04` 1장), 해당 경로 버전에 행이 있으면 연결선 대신 실제 경로를 그린다. `path_source`가 `manual_trace`이면 추정 경로임을 함께 표시한다. 천안아산역 노선의 귀교 경로는 입력 자료가 역→학교로만 표현하므로 **탕정역·시티프라디움을 역순으로 자동 추가하지 않는다** (`04` 11장).
+실제 경로를 그리려면 별도로 확인한 노선 경로 좌표가 필요하다. 그 자료는 `route_path_points`에 있으며(`04` 1장), 해당 경로 버전에 행이 있으면 연결선 대신 실제 경로를 그린다. `path_source`가 `manual_trace`이면 추정 경로임을 함께 표시한다.
+
+**2026-09-18 결정 — 행이 없으면 직선 연결선도 긋지 않는다** (`md_frontend/must_do.md` F8). 실제 경로와 다른 선이 화면에 남는 것을 막기 위해서다. 경로는 `GET /routes/{route_id}/path?service_date`로 받고 `verification`에 따라 그린다:
+
+| `verification` / `path_source` | 표시 |
+|---|---|
+| `verified` (모든 구간 verified) | 실선 |
+| `partial`·`unverified` | 점선 + "미검증 경로" |
+| `manual_trace` | 점선 + "추정 경로" |
+| `none` (행 없음) | 아무 선도 없음. 마커만 |
+
+구간 검증은 같은 패턴의 **두 번째 트랙**으로만 올라간다 (`python -m app.survey verify`, IMPROVEMENTS 등록 절차). 첫 트랙만으로 실선을 그리지 않는다. 천안아산역 노선의 귀교 경로는 입력 자료가 역→학교로만 표현하므로 **탕정역·시티프라디움을 역순으로 자동 추가하지 않는다** (`04` 11장).
 
 ## 6. 실제 승차 위치
 

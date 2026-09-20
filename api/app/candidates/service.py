@@ -15,9 +15,8 @@ from app.models.reference import RoutePattern, RouteStop, RouteVersion, TripTemp
 from app.state.build import stop_out, tracked_vehicle_count, visit_out
 from app.state.bundle import TripBundle, load_trip_bundles
 from app.state.visits import evaluate_vehicle_visits
-from app.timeutil import SEOUL
+from app.timeutil import to_seoul as _local
 
-REFRESH_AFTER_SECONDS = 30  # 시험값 (11 5장)
 NEXT_DATE_HORIZON_DAYS = 120
 
 
@@ -42,10 +41,6 @@ def trips_for_route_date(session: Session, route_id: uuid.UUID, service_date: da
             .where(RoutePattern.route_id == route_id, ScheduledTrip.service_date == service_date)
         )
     )
-
-
-def _local(dt: datetime | None) -> datetime | None:
-    return dt.astimezone(SEOUL) if dt else None
 
 
 def journey_pairs(bundle: TripBundle, origin_stop_id: uuid.UUID, destination_stop_id: uuid.UUID):

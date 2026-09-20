@@ -1,0 +1,10 @@
+{
+  "_설명": "현장 확인 전 임시 좌표. 2026-09-18 작성자(AI)의 기억에 있는 역·터미널 대략 위치라 수십 m 틀릴 수 있고, 실제 셔틀 승차 지점은 더더욱 아니다. 파이프라인 시험용이다. 전부 needs_interpretation — 현장에서 확인한 값으로 app.stops set --status verified 로 덮어쓴다. 캠퍼스 안 승차 위치·아파트 정류장·경유지는 현장 아니면 모르므로 넣지 않았다.",
+  "아산캠퍼스":   { "lat": 36.7998, "lng": 127.0745, "status": "needs_interpretation", "radius": 80 },
+  "천안아산역":   { "lat": 36.7944, "lng": 127.1045, "status": "needs_interpretation", "radius": 80 },
+  "탕정역":       { "lat": 36.7896, "lng": 127.0839, "status": "needs_interpretation", "radius": 60 },
+  "천안역":       { "lat": 36.8103, "lng": 127.1467, "status": "needs_interpretation", "radius": 80 },
+  "천안터미널":   { "lat": 36.8191, "lng": 127.1560, "status": "needs_interpretation", "radius": 80 },
+  "온양온천역":   { "lat": 36.7803, "lng": 127.0031, "status": "needs_interpretation", "radius": 80 },
+  "아산터미널":   { "lat": 36.7853, "lng": 127.0067, "status": "needs_interpretation", "radius": 80 }
+}

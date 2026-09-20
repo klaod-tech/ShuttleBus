@@ -128,6 +128,7 @@
 - JSON 필드와 DB 열은 `snake_case`, TypeScript 변수·함수는 `camelCase`
 - 변경 요청에는 `Idempotency-Key`를 사용한다. 없으면 422. 키는 계정별로 `idempotency_records`에 요청과 같은 트랜잭션으로 저장하고, 성공 응답만 기록한다. 로그인과 시계 확인 두 요청은 키를 요구하지 않는다
 - 관리자·입력자는 `Authorization: Bearer {access_token}`으로 인증하고 역할을 검증한다
+- 연속 로그인 실패가 `login_max_failures`에 닿으면 `login_lockout_seconds` 동안 `LOGIN_LOCKED`(429)다. 없는 아이디는 잠그지 않고 401만 낸다 — 응답으로 계정 존재를 알 수 없게. 비밀번호 재설정·강제 로그아웃은 `staff_accounts.token_not_before`를 갱신하고, 그보다 먼저 발급된 토큰은 만료 전이라도 401이다 (2026-09-18).
 - **입력자 토큰 수명은 24시간**이다. 왕복 운행 중 만료를 피하기 위함이며 MVP에는 refresh 토큰을 두지 않는다. 만료 2시간 전부터 재로그인을 안내한다. 재로그인해도 로컬 대기 입력 ID는 유지한다.
 - 단말 인증은 별도 토큰·차량 배정이며 발급·회수는 Phase 2에서 설계한다 (`07-gps-detection`)
 - **`retryable=true`는 동일 요청의 일시 오류 재전송에만 쓴다**
@@ -164,9 +165,10 @@
 | `VALIDATION_ERROR` | 422 | 필수 입력 누락·형식 오류·소속이 맞지 않는 ID 조합 (예: 날짜 없는 정거장 조회)·허용 범위(2020-01-01~2100-12-31) 밖 운행 날짜 | false | `01` |
 | `REVIEW_CONFLICT` | 409 | 검토 대상 상태 변경 또는 대표 관측 충돌 | false | `13` |
 | `RESTORE_CONFLICT` | 409 | 복구하면 한 방문에 유효 관측이 둘이 됨 | false | `13` |
+| `LOGIN_LOCKED` | 429 | 연속 실패로 잠긴 계정. 잠금 중에는 맞는 비밀번호도 받지 않음 | true | `01` |
 | `OPERATION_STATE_CONFLICT` | 409 | 이미 완료·취소된 차량·회차에 완료·취소 요청, 완료되지 않은 차량의 완료 재검토 | false | `13` |
 | `CLOCK_EVIDENCE_INVALID` | 422 | 시계 검증 근거 형식·소속 불일치 | false | `02` |
-| `CACHE_REBUILDING` | 503 | 캐시 복원 중 | true | `12` |
+| `CACHE_REBUILDING` (미구현 — 현재는 캐시 누락 시 DB 스냅샷으로 바로 응답, `12` 5장) | 503 | 캐시 복원 중 | true | `12` |
 | `INTERNAL_ERROR` | 500 | 처리하지 못한 서버 오류. 내부 정보는 응답에 싣지 않고 로그로만 남김 | true | `01` |
 
 **날짜 자료 미확보는 404가 아니다.** 200 응답의 `schedule_status = unknown`으로 표현한다. 404는 존재하지 않는 리소스에만 쓴다.
@@ -236,6 +238,8 @@
 |---|---|---|---|
 | `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` | 접속·서명 비밀값 | 서버 전용 | `14` |
 | `ACCESS_TOKEN_TTL_SECONDS` | 입력자 토큰 수명 | 확정 | `01` |
+| `login_max_failures` | 연속 로그인 실패 몇 번에 잠그는가 | 시험값 5 (2026-09-18) | `01` |
+| `login_lockout_seconds` | 잠금 지속 시간 | 시험값 900 (2026-09-18) | `01` |
 | `observation_grace_seconds` | 통과 기록이 오래됐는가 | 시험값 | `08` |
 | `auto_promote_enabled` | 통계 스냅샷을 자동 활성화할 것인가 | 최초 기본 참, 롤백 시 false·명시 재개 | `08`·`14` |
 | `arrived_freshness_seconds` | arrived를 추천해도 되는가 | 시험값 | `11` |
@@ -244,6 +248,10 @@
 | `clock_check_valid_seconds` | 시계 확인 근거가 유효한 범위 | 시험값 (비우면 `needs_review`) | `02` |
 | `pending_input_retention_hours` | 지연 입력을 채택할 것인가 | 시험값 (비우면 `needs_review`) | `02` |
 | `idempotency_retention_days` | 요청 접수증을 언제까지 보관하는가 | 확정 7일 (2026-09-18) | `01` |
+| `outbox_poll_seconds` | outbox 전송 주기 | 시험값 0.3 (NFR-01 2초 안) | `12` |
+| `state_refresh_seconds` | 시간 경과 상태 확정 주기 | 30 — `refresh_after_seconds`와 맞춤 | `12` |
+| `realtime_workers` | 이 프로세스가 전송·만료·보충 작업을 돌리는가 | 기본 참, 시험은 거짓 | `14` |
+| `cors_origins`, `socket_cors_origins` | 브라우저 출처 허용 목록. `*` 금지 | 배포 주소에 따라 | `14` |
 | `CORS_ORIGINS` | 브라우저 화면의 출처를 허용할지 | 배포 주소 확정 시 설정. 비우면 같은 출처만, `*`는 쓰지 않음 | `14` |
 | `SOCKET_CORS_ORIGINS` | Socket.IO 출처를 따로 둘지 | 비우면 `CORS_ORIGINS`를 따름 | `12` |
 | `ADMIN_BOOTSTRAP_ID`, `ADMIN_BOOTSTRAP_PASSWORD` | 최초 관리자 1명을 사람 없이 만들지 | 일회용. 계정 생성 후 값을 지운다 | `06` |

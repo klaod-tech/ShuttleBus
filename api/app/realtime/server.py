@@ -14,6 +14,7 @@ from datetime import timedelta
 import socketio
 from sqlalchemy import select
 
+from app.calendar.service import ensure_scheduled_trips
 from app.clock import get_now
 from app.config import settings
 from app.db import SessionLocal
@@ -115,6 +116,23 @@ def restore_cache_on_start() -> int:
         return sum(1 for tid in trip_ids if cache.rebuild(session, tid))
 
 
+def ensure_upcoming_trips(days: int = 14) -> int:
+    """오늘부터 N일 뒤까지 누락 회차·차량 슬롯을 보충한다 (05 5장). 멱등.
+
+    K8s 전 단계에서는 CronJob 대신 이 프로세스가 하루 한 번 돈다 (14 3장). 이게 없으면 Compose의
+    migrate가 만든 14일치가 끝난 뒤 학생의 첫 조회가 회차를 생성하는 쓰기가 된다 (IMPROVEMENTS 한계 4).
+    """
+    start = today_seoul(get_now())
+    end = start + timedelta(days=days)
+    created = 0
+    with SessionLocal() as session:
+        for route in session.scalars(select(Route).where(Route.is_active)):
+            report = ensure_scheduled_trips(session, route.route_id, start, end)
+            session.commit()
+            created += report.created_trips
+    return created
+
+
 def purge_old_records() -> tuple[int, int]:
     """전송이 끝난 outbox 항목과 보존 기간이 지난 멱등 기록을 지운다. 하루 한 번 돌린다."""
     now = get_now()
@@ -148,6 +166,10 @@ async def _purge():
     await asyncio.to_thread(purge_old_records)
 
 
+async def _ensure_trips():
+    await asyncio.to_thread(ensure_upcoming_trips)
+
+
 @contextlib.asynccontextmanager
 async def background_workers():
     if not settings.realtime_workers:
@@ -158,6 +180,7 @@ async def background_workers():
         asyncio.create_task(_loop("outbox 전송", settings.outbox_poll_seconds, _drain)),
         asyncio.create_task(_loop("상태 만료 확정", settings.state_refresh_seconds, _refresh)),
         asyncio.create_task(_loop("오래된 기록 정리", 3600, _purge)),
+        asyncio.create_task(_loop("회차 보충", 86400, _ensure_trips)),
     ]
     try:
         yield

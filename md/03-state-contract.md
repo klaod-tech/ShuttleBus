@@ -61,6 +61,7 @@ last_observation은 `event_id, trip_stop_id, stop_id, stop_name, stop_sequence, 
 | prediction_basis | scheduled_departure / observed_event / interpolated_event 또는 null |
 | basis_observation | 대상별 계산 근거. 관측 없는 경우 null. last_observation과 같은 필드 구조 |
 | unavailable_reason | 예측을 제공하지 못하는 이유 또는 null |
+| observed_arrival_at, observed_departure_at, observed_passed_at | 이 방문·이 차량의 **유효 실측 시각.** 없으면 null. 지난 기록 표시용이며 예측이 아니다 — 다른 방문의 관측을 대신 넣지 않는다 (2026-09-18 추가) |
 
 응답에는 **근거를 `basis_observation` 하나로만 싣는다.** 이전의 `basis_event_id`·`basis_observed_at`은 이 객체의 `event_id`·`occurred_at`과 같은 값이라 세 곳에 두면 어긋날 수 있었다. 두 열은 `eta_predictions` 이력에 남아 있으며(`08` 7장) 응답은 그 ID로 객체를 구성한다.
 
@@ -146,3 +147,4 @@ event_confirmed는 목표 도착 등 해당 사건이 이미 관측되었다는 
 |---|---|---|
 | FR-ST-12 | 관측과 기점 시각 모두 없음 | prediction_basis=null, basis_observation=null, 시간표 기준 문구 없음 |
 | FR-ST-13 | 기점 공시 출발을 계산 근거로 선택 | scheduled_departure와 null 관측 객체, 시간표 기준 표시 |
+| FR-ST-14 | 방문에 유효 arrived 관측만 있음 | observed_arrival_at에 그 시각, observed_departure_at·observed_passed_at은 null. 취소된 관측은 싣지 않음 |

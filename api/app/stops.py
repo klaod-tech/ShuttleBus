@@ -7,6 +7,9 @@ verification_status를 함께 기록한다 — verified / needs_interpretation /
   python -m app.stops list
   python -m app.stops set --name 아산캠퍼스 --lat 36.7998 --lng 127.0745 --status verified
   python -m app.stops import --file coords.json     {"아산캠퍼스": {"lat": .., "lng": .., "status": ".."}}
+  python -m app.stops import --file samples/stops-provisional.json   현장 확인 전 임시 좌표 (needs_interpretation)
+
+import는 이미 verified인 정거장을 덮지 않는다 (--overwrite-verified 로 강제). 현장 확인값이 임시값에 밀리지 않게.
 """
 
 import argparse
@@ -65,6 +68,7 @@ def main() -> None:
     one.add_argument("--radius", type=int, default=None, help="지오펜스 반경(m). 생략하면 그대로 둔다")
     bulk = sub.add_parser("import", help="JSON 파일에서 여러 정거장 좌표 등록")
     bulk.add_argument("--file", required=True)
+    bulk.add_argument("--overwrite-verified", action="store_true", help="verified 정거장도 덮어쓴다 (기본은 건너뜀)")
     args = parser.parse_args()
 
     with SessionLocal() as session:
@@ -81,13 +85,19 @@ def main() -> None:
             return
         with open(args.file, encoding="utf-8") as f:
             data = json.load(f)
-        done = 0
+        done, skipped = 0, 0
         for name, value in data.items():
+            if name.startswith("_"):
+                continue  # 설명 칸
             stop = _stop_by_name(session, name)
+            if stop.verification_status == "verified" and stop.latitude is not None and not args.overwrite_verified:
+                skipped += 1
+                print(f"건너뜀 (verified 유지): {name}")
+                continue
             set_location(session, stop, float(value["lat"]), float(value["lng"]), value.get("status", "verified"), value.get("radius"))
             done += 1
         session.commit()
-        print(f"{done}개 정거장 좌표 등록")
+        print(f"{done}개 정거장 좌표 등록, {skipped}개 건너뜀")
 
 
 if __name__ == "__main__":

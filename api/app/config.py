@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # 06 3장 — 시험값
     max_skip_stops: int = 3
 
+    # 11 3·5장 — 시험값. 14 4장이 ConfigMap으로 두는 값이라 모듈 상수가 아니라 설정이다 (2026-09-18)
+    arrived_freshness_seconds: int = 180
+    refresh_after_seconds: int = 30
+
     # 02 6·12장 — 시험값 (2026-09-15 사용자 승인). 실측 후 교체.
     # 환경변수로 비우면(None) 문서의 보수적 처리(검토 대기 보관)를 따른다
     realtime_input_window_seconds: int | None = 120
@@ -33,6 +37,10 @@ class Settings(BaseSettings):
 
     # 13 10장 — 실측 후 확정. None이면 검토 대상 판정을 하지 않는다
     session_review_grace_seconds: int | None = None
+
+    # 로그인 시도 제한 (IMPROVEMENTS 한계 1, 2026-09-18). 연속 실패가 상한에 닿으면 잠금 시간 동안 거절한다
+    login_max_failures: int = 5
+    login_lockout_seconds: int = 900
 
     # 01 4장 — 요청 접수증 보존 기간 (2026-09-18 결정). 재전송 대비용이라 길게 둘 이유가 없다
     idempotency_retention_days: int = 7

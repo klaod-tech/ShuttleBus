@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.calendar.service import ensure_scheduled_trips, resolve_service_calendar
-from app.candidates.service import REFRESH_AFTER_SECONDS, find_boarding_candidates, trips_for_route_date
+from app.candidates.service import find_boarding_candidates, trips_for_route_date
+from app.config import settings
 from app.clock import get_now
 from app.db import get_session
 from app.errors import check_service_date, invalid, not_found
@@ -22,7 +23,7 @@ from app.state.bundle import load_trip_bundles
 from app.state.schemas import StopOut, TripStateOut, VisitOut
 from app.timetable.parse import student_union_applies
 from app.timetable.source_2026_2 import CAMPUS, ROUTES
-from app.timeutil import SEOUL
+from app.timeutil import SEOUL, to_seoul as _local
 
 router = APIRouter(prefix="/api/v1")
 
@@ -101,10 +102,6 @@ class TripListOut(BaseModel):
     trips: list[TripSummaryOut]
 
 
-def _local(dt: datetime | None) -> datetime | None:
-    return dt.astimezone(SEOUL) if dt else None
-
-
 @router.get(
     "/scheduled-trips",
     response_model=CandidatesOut | TripListOut,
@@ -138,7 +135,7 @@ def get_scheduled_trips(
             candidates=result.candidates,
             unverified_candidates=result.unverified_candidates,
             recommended_candidate=result.recommended_candidate,
-            refresh_after_seconds=REFRESH_AFTER_SECONDS,
+            refresh_after_seconds=settings.refresh_after_seconds,
             no_candidate_reason=result.no_candidate_reason,
             next_known_service_date=result.next_known_service_date,
             has_unknown_dates_before=result.has_unknown_dates_before,

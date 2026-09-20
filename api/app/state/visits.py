@@ -24,6 +24,8 @@ class VisitState:
     basis_observation: EventView | None
     unavailable_reason: str | None
     arrived_observed_at: datetime | None = None
+    departed_observed_at: datetime | None = None
+    passed_observed_at: datetime | None = None
 
 
 def _reference_time(bundle: TripBundle, index: int) -> datetime | None:
@@ -79,11 +81,14 @@ def evaluate_visit(bundle: TripBundle, vehicle, index: int, now: datetime) -> Vi
     events = bundle.events.get(vehicle_id, [])
     here = {e.event_type: e for e in events if e.trip_stop_id == ts.trip_stop_id and e.event_type != "skipped"}
     arrived_at = here["arrived"].occurred_at if "arrived" in here else None
+    departed_at = here["departed"].occurred_at if "departed" in here else None
+    passed_at = here["passed"].occurred_at if "passed" in here else None
+    observed = dict(arrived_observed_at=arrived_at, departed_observed_at=departed_at, passed_observed_at=passed_at)
 
     target = "departed" if is_origin else "arrived" if is_terminal else None
 
     def unavailable(reason: str, basis: str | None = None, observation: EventView | None = None) -> VisitState:
-        return VisitState(ts.trip_stop_id, status, None, target, basis, observation, reason, arrived_at)
+        return VisitState(ts.trip_stop_id, status, None, target, basis, observation, reason, **observed)
 
     # 08 6장 표 순서
     if bundle.trip.operation_status == "cancelled" or vehicle_status == "cancelled":
@@ -105,7 +110,7 @@ def evaluate_visit(bundle: TripBundle, vehicle, index: int, now: datetime) -> Vi
         if departure is None:
             return unavailable("no_observation")
         if departure >= now:
-            return VisitState(ts.trip_stop_id, status, departure, "departed", "scheduled_departure", None, None, arrived_at)
+            return VisitState(ts.trip_stop_id, status, departure, "departed", "scheduled_departure", None, None, **observed)
         return unavailable("prediction_expired", "scheduled_departure")
 
     if bundle.trip.origin_trip_stop_id is None or bundle.origin.trip_stop.scheduled_departure_at is None:

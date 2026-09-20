@@ -24,13 +24,13 @@
 
 | # | 한계 | 영향 | 처리 시점 |
 |---|---|---|---|
-| 1 | 로그인 시도 횟수 제한 없음 | 비밀번호 대입 공격. scrypt 비용만 속도를 늦춘다 | 외부 공개 전 (리버스 프록시 제한 또는 계정 잠금) |
-| 2 | 비밀번호 재설정해도 발급된 토큰은 만료(24시간)까지 유효 | 유출 토큰 즉시 차단 불가. 계정 비활성화는 즉시 반영됨 | 외부 공개 전 (토큰 발급 기준 시각 열) |
+| 1 | ~~로그인 시도 횟수 제한 없음~~ | **해결 (2026-09-18)** — 연속 5회 실패 시 15분 잠금(`LOGIN_LOCKED` 429). 없는 아이디는 잠그지 않음 | 완료 |
+| 2 | ~~비밀번호 재설정해도 발급된 토큰은 만료까지 유효~~ | **해결 (2026-09-18)** — `staff_accounts.token_not_before`. 재설정(`accounts create`)과 `accounts revoke-tokens`가 갱신하고 그 이전 토큰은 401 | 완료 |
 | 3 | ~~`idempotency_records` 정리 없음~~ | **해결 (2026-09-18)** — 보존 7일 확정. `python -m app.jobs purge-records`와 서버 내부 1시간 주기 작업이 지운다 | 완료 |
-| 4 | 처음 조회되는 날짜는 학생 GET이 달력·회차를 생성(쓰기)함 | 허용 날짜 범위(2020~2100)로 상한은 있음. 이후 같은 날짜 조회는 쓰기 없음 | 회차 생성 배치(`ensure-trips`)가 충분히 앞서 돌면 사실상 없음 |
+| 4 | 처음 조회되는 날짜는 학생 GET이 달력·회차를 생성(쓰기)함 | 허용 날짜 범위(2020~2100)로 상한은 있음. 이후 같은 날짜 조회는 쓰기 없음 | **완화 (2026-09-18)** — API 프로세스가 하루 한 번 `ensure_upcoming_trips`(14일)를 돌려 K8s CronJob 전까지 배치를 대신한다 (`realtime/server.py`). 14일 넘게 꺼져 있던 뒤 첫 조회에서만 남는다 |
 | 5 | 시간표 원문이 바뀌어 재시드해도 이미 생성된 회차의 시각은 그대로 | 시간표 정정이 과거 생성분에 반영 안 됨 | 시간표 변경 절차를 정할 때 (05) |
 | 6 | 관리자 수집 기록 목록이 세션마다 추가 조회 2회 | 하루 세션 수가 수백을 넘으면 느려짐 | 규모가 커질 때 |
-| 7 | CORS 설정 없음 | 브라우저 화면이 다른 출처면 호출 불가 | 화면 작업 시작 시 |
+| 7 | ~~CORS 설정 없음~~ | **해결 (2026-09-18)** — `CORS_ORIGINS`(쉼표 구분)로 REST·Socket.IO 함께 허용. `*`는 쓰지 않는다 | 완료 |
 
 ## 개선사항 1순위 — GPS 수신 복구와 노선 기반 진행 위치 재확인
 
@@ -149,6 +149,17 @@ detection_missed는 공개 방문 상태에서 제외했다. 학생 표시·수�
 **첫 파일을 받으면 `<extensions>`에 정확도 값이 있는지 확인한다.** 표준 GPX에는 그 필드가 없고 `sat`·`hdop`·`fix`만 있다. 없으면 `max_position_accuracy_m`은 조사 트랙으로 정하지 못하며 Phase 2 실제 단말의 보고값으로 정한다 (`07` 7장).
 
 ### 등록 절차
+
+명령은 `python -m app.survey` 다 (2026-09-18, `md/PLAN-route-data.md` ②). 원본은 고치지 않고 정제 결과만 다시 만든다.
+
+```powershell
+python -m app.stops import --file samples\stops-provisional.json     # ① 임시 좌표 (needs_interpretation). 현장값이 오면 set --status verified
+python -m app.survey import --file 2026-09-20_cheonan_asan_1.gpx --pattern cheonan_asan/general --label 폰   # 1단계
+python -m app.survey build-path --track <survey_track_id> --tolerance 5   # 2~7단계. unverified 로 만든다
+python -m app.survey verify --track <두_번째_트랙_id> --max-deviation 30   # 두 번째 탑승으로 구간 검증 → verified
+python -m app.survey list
+python -m app.survey gpx-demo --pattern cheonan_asan/general --out demo.gpx   # 시험 전용 가짜 트랙. verify에 쓰지 않는다
+```
 
 ```text
 1. GPX → survey_tracks · survey_track_points 로 원본 그대로 적재

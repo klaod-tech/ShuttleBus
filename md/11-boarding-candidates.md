@@ -132,6 +132,7 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 | 함수 | 역할 |
 |---|---|
 | find_boarding_candidates | 선택 노선·날짜·출발·도착의 후보 조회 |
+| find_stop_upcoming | 정거장 하나의 가까운 예정 방문 — 11장. 대표 시각은 도착→출발 |
 | build_journey_visit_pairs | 동일 차량 회차의 순서가 맞는 승하차 방문 쌍 |
 | classify_candidate_freshness | 신선도·승하차 정책·예측 사유 확인 |
 | compute_sort_at | 승차 방문의 정보 출처를 먼저 선택하고 같은 출처 안에서 departed→arrived→passed 적용. 신선한 arrived는 도착 관측 유지 |
@@ -170,3 +171,72 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 | FR-BC-20 | 공시 출발 08:10, 유효 도착 예측 08:20 | sort_at=08:20, sort_basis_event_type=arrived |
 | FR-BC-21 | 신선한 arrived와 미래 예상 출발 동시 존재 | group 0, 도착 관측으로 정렬, 예상 출발은 보조 표시 |
 | FR-BC-22 | 실시간 근거 무효지만 미래 공시 시각 존재 | 확인 필요 유지, 공시값으로 정상 추천 복귀 없음 |
+
+## 11. 정거장 단독 조회 — 가까운 예정 방문
+
+출발·도착을 모두 고르기 전에 **정거장 하나를 눌러 다음 버스를 보는** 화면용이다 (`md_frontend/02`). 2~4장의 탑승 후보와 역할이 다르다 — 승차 가능을 보장하는 추천이 아니라 **방문 예정 정보**다. 하차 전용이거나 승차 정책 미확인인 방문에는 안내를 붙이되 숨기지 않는다.
+
+`GET /stops/{stop_id}/upcoming?route_id&service_date`. 인증 없음.
+
+### 방향을 합친다
+
+왕복 노선은 같은 정거장을 두 번 지난다. 방향을 먼저 고르게 하지 않고 **가까운 순으로 합쳐서** 보여주되, 각 행에 `next_stop_name`(다음 정거장)과 `terminal_stop_name`(회차 종점)을 실어 방향을 읽게 한다 (2026-09-18 결정). 새 자료 없이 방문 순서만으로 만들 수 있고, 왕복 패턴의 `direction` 하나로 개별 방문 방향을 표현하려다 틀리는 것을 피한다.
+
+### 대표 시각 — 도착이 먼저
+
+정보 출처를 먼저 고르고 그 출처 안에서 사건을 고른다는 틀은 4장과 같다. 다만 **사건 우선순위가 반대다.** 후보 검색은 "언제 타나"라서 출발이 먼저이고, 정거장 안내는 "언제 오나"라서 **도착 → 통과 → 출발**이다. 공시 시각에는 통과가 없으므로 실제로는 도착 → 출발이다.
+
+| 순서 | 출처 | 분류 | display_basis |
+|---|---|---|---|
+| 1 | 유효 `arrived` 관측 | `attention` — 신선하면 `arrived_confirmed`, 아니면 `arrival_observation_stale`. 미래 예상 출발이 있으면 `secondary_departure_at`에 보조 표시하고 같은 방문을 미래 목록에 다시 넣지 않는다 | observed_event |
+| 2 | 유효 미래 예측 (`estimated_event_at ≥ now`) | `upcoming` | `prediction_basis` 값 그대로 (기점이면 scheduled_departure) |
+| 3 | 실시간 근거 무효 (`stale_observation` 등 3장 7의 사유) | `attention` — 그 사유. 미래 공시값으로 정상 항목을 되살리지 않는다 | timetable 또는 null |
+| 4 | 의미가 확인된 공시 시각 | 미래면 `upcoming`, 지났으면 `attention`(`scheduled_time_passed` — "통과 여부 확인 중") | timetable |
+| 5 | unspecified 공시값만 · 시각 없는 경유 | `reference_timetable` (`scheduled_event_type_unspecified` / `no_scheduled_time`) | timetable / null |
+
+`display_basis = scheduled_departure`와 `timetable`은 화면에서 둘 다 "시간표 기준"이다. 구분을 남기는 이유는 전자가 03의 예측 경로를 지났고 후자는 지나지 않았기 때문이다.
+
+### 제외와 정렬
+
+완료·취소 차량, 이미 `departed`·`passed`·`passed_inferred`인 방문은 어느 목록에도 넣지 않는다. 예상 시각이 지났다는 이유만으로 통과로 만들지 않는다 — 그건 4번 규칙대로 확인 항목이다.
+
+세 목록 모두 `display_at` 오름차순 → `trip_no` → `vehicle_slot` → `stop_sequence`. `display_at`이 null인 행은 뒤로. **`upcoming`만 최대 2개로 자른다.** 확인 항목과 참고 시간표는 상한과 별개다. 슬롯 2개는 독립 행이며 합치지 않는다.
+
+### 응답
+
+`stop_id, stop_name, route_id, service_date, schedule_status, schedule_reason, server_time, refresh_after_seconds, upcoming[], attention[], reference_timetable[], empty_reason`.
+
+| 항목 필드 | 의미 |
+|---|---|
+| trip_id, trip_no, trip_vehicle_id, vehicle_slot, route_id, route_pattern_id, pattern_code | 차량·회차 식별 |
+| trip_stop_id, stop_sequence, is_origin, is_terminal | 이 방문 |
+| next_stop_name, terminal_stop_name | 방향 문구 재료. 종점 방문은 next_stop_name = null |
+| display_at, display_event_type, display_basis | 대표 시각·사건·출처 (위 표) |
+| reason | attention·reference_timetable의 사유. upcoming은 null |
+| secondary_departure_at | 도착 확인 항목의 보조 예상 출발 |
+| notes[] | `boarding_not_allowed` / `boarding_policy_unknown`. 숨기지 않고 안내한다 |
+| operation_status, information_status, scheduled_vehicle_count, tracked_vehicle_count | 03과 같은 뜻 |
+| stop, visit | 03 stops[]·visits[] 항목 형식 |
+
+`empty_reason`은 `upcoming`이 비었을 때만 값이 있다.
+
+| 값 | 뜻 |
+|---|---|
+| schedule_unavailable | 그 날짜에 운행 없음·미확인·기간 밖 (`schedule_status` 참조) |
+| past_date | 지난 날짜. 다음 버스가 아니라 시간표 열람으로 안내 |
+| stop_not_on_route | 이 노선이 그 정거장을 지나지 않음 |
+| unconfirmed_remaining | 정상 미래 항목은 없지만 확인 항목·참고 시간표가 남아 있음. **"모든 버스 종료"라고 쓰지 않는다** |
+| no_remaining_service | 세 목록 모두 비었음 |
+
+미래 날짜는 현재 시각의 시·분을 복사해 거르지 않으므로 그 날의 첫 방문부터 나온다. 갱신 주기는 5장의 `refresh_after_seconds`를 그대로 쓴다.
+
+### 검증 기준
+
+| ID | 사례 | 기대 결과 |
+|---|---|---|
+| FR-BC-23 | 07:00 캠퍼스 조회 | upcoming 2개, 첫 행은 순1 08:05 departed·scheduled_departure, next_stop_name=탕정역 |
+| FR-BC-24 | 천안아산역 07:00 조회 | 순1 08:25 **arrived**가 순2 08:35 departed보다 앞. 공시 도착이 있으면 대표 사건은 arrived |
+| FR-BC-25 | 2대 회차 | 슬롯별 별도 행, 상한 2개는 upcoming에만 적용 |
+| FR-BC-26 | 08:10 조회, 순1 캠퍼스 출발 관측 없음 | upcoming에 없고 attention에 prediction_expired 08:05 |
+| FR-BC-27 | 천안아산역 arrived 관측 1분 전 | attention arrived_confirmed·observed_event·관측 시각. 같은 방문이 upcoming에 없음. 16분 뒤 arrival_observation_stale |
+| FR-BC-28 | 빈 결과 | 노선 밖 정거장 stop_not_on_route, 지난 날짜 past_date, 토요일 온양 schedule_unavailable, 밤늦게 no_remaining_service 또는 unconfirmed_remaining |

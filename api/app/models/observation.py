@@ -49,6 +49,11 @@ class StaffAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # 비밀번호·역할·사용 여부를 바꾼 시각. 계정 관리 이력의 최소 근거다
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    # 로그인 시도 제한 (IMPROVEMENTS 한계 1). 연속 실패 수와 잠금 해제 시각. 성공하면 0·null로 돌아간다
+    failed_login_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # 이 시각보다 먼저 발급된 토큰은 거절한다 (IMPROVEMENTS 한계 2). 비밀번호 재설정·강제 로그아웃이 갱신한다
+    token_not_before: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CollectionSession(Base):

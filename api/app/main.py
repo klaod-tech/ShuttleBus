@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from app.api.admin import router as admin_router
 from app.api.calendar import router as calendar_router
 from app.api.collection import router as collection_router
+from app.api.stop_upcoming import router as stop_upcoming_router
 from app.api.trips import router as trips_router
 from app.config import settings
 from app.errors import install_error_handlers
@@ -54,6 +55,7 @@ install_cors(app, settings.cors_origins)
 
 app.include_router(calendar_router)
 app.include_router(trips_router)
+app.include_router(stop_upcoming_router)
 app.include_router(collection_router)
 app.include_router(admin_router)
 

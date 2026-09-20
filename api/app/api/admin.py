@@ -223,7 +223,7 @@ def review_out(r: ObservationReview) -> ReviewRecordOut:
     )
 
 
-def stop_out(s: Stop) -> StopOut:
+def admin_stop_out(s: Stop) -> StopOut:
     return StopOut(
         stop_id=s.stop_id,
         name=s.name,
@@ -426,7 +426,7 @@ def post_notice_expire(
 
 @router.get("/admin/stops", response_model=StopListOut, summary="정거장 좌표·확인 상태 목록")
 def list_stops(principal: Principal = Depends(admin), session: Session = Depends(get_session)):
-    return StopListOut(stops=[stop_out(s) for s in session.scalars(select(Stop).order_by(Stop.name))])
+    return StopListOut(stops=[admin_stop_out(s) for s in session.scalars(select(Stop).order_by(Stop.name))])
 
 
 @router.post("/admin/stops/{stop_id}/location", response_model=StopOut, summary="정거장 좌표 등록·수정")
@@ -445,7 +445,7 @@ def post_stop_location(
             set_location(session, stop, body.latitude, body.longitude, body.verification_status, body.geofence_radius_m)
         except ValueError as exc:
             raise invalid(str(exc)) from None
-        return 200, stop_out(stop)
+        return 200, admin_stop_out(stop)
 
     endpoint = f"POST /admin/stops/{stop_id}/location"
     return _idempotent(session, principal, idempotency_key, endpoint, body.model_dump(), handler)
