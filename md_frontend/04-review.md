@@ -16,15 +16,15 @@
 
 | 우선 | 항목 | 코드·문서에서 확인한 사실 | 다음 처리 |
 |---|---|---|---|
-| 높음 | 정류장별 다음 버스 조회 | 현재 scheduled-trips는 출발·도착 쌍 또는 전체 회차만 지원한다 | 02·03에 남은 정렬·날짜·확인 항목 계약을 합의하고 서버에서 구현. 외부 버스 API와 별개의 기능 |
-| 높음 | 브라우저 연결 | REST CORS 미설정, Socket.IO는 기본 같은 출처만 허용 | 화면 주소와 같은 출처 프록시 사용 여부를 정하고 REST·Socket.IO를 함께 검증 |
-| 높음 | 실측 이력 표시 부족 | VisitOut에는 방문별 실제 도착·출발·통과 시각이 없고, last_observation은 차량의 마지막 기록 하나다. already_passed·trip_completed 경로는 basis_observation도 비울 수 있다 | 학생 상세의 지난 기록에 실제 시각을 표시하려면 공개 응답 보완 필요. 다른 방문의 마지막 기록을 대신 쓰지 않음 |
+| ~~높음~~ | ~~정류장별 다음 버스 조회~~ | **해결 (2026-09-18)** — `GET /stops/{stop_id}/upcoming`. 계약은 ../md/11 11장 | 화면에서 upcoming·attention·reference_timetable·empty_reason 네 갈래를 그린다 |
+| ~~높음~~ | ~~브라우저 연결~~ | **해결 (2026-09-18)** — `CORS_ORIGINS`로 REST·Socket.IO 함께 허용 (must_do S2) | 화면에서 `http://localhost:3000` 출처로 REST·Socket.IO 연결만 확인 |
+| ~~높음~~ | ~~실측 이력 표시 부족~~ | **해결 (2026-09-18)** — visits[]에 `observed_arrival_at`·`observed_departure_at`·`observed_passed_at` 추가 (../md/03 5장, FR-ST-14) | 지난 기록은 이 세 값으로만 그린다. 다른 방문의 관측을 대신 쓰지 않음 |
 | 중간 | 시간표 중간 지점 시각 | TripListOut은 기점 출발·종점 도착만 반환한다. 천안아산역 등 중간 공시 시각은 /state의 stops에 있다 | 우선 선택 회차 상세 조회로 제공하거나 일괄 시간표 응답 협의. 모든 회차 상세를 동시에 요청하는 방식은 피함 |
 | 중간 | 관리자 버전·회차 연결 | 관리자 세션 상세는 session·events·reviews만 반환한다. session에는 trip_id·control_version이 없다 | 목록에서 trip_id를 유지하고 /state로 control_version 조회. 직접 주소 진입 시 목록 재조회 또는 서버 상세 응답 보완 필요 |
 | 중간 | 완료 재검토 필터 | 관리자 목록은 review_required 필터만 받고 completion_review_required는 결과 필드다 | 완료 재검토 화면은 필터 없는 날짜 목록을 받은 뒤 해당 필드로 필터. review_required=true와 동일시하지 않음 |
 | 중간 | 날짜·노선 목록과 무운행일 | 날짜별 정류장 API는 available이 아니면 patterns가 비어 있다 | 이 상태를 ‘노선에 정류장 없음’으로 표시하지 말고 날짜 상태를 우선 표시 |
 | 중간 | 정보 만료 | /state에는 server_time은 있지만 정보별 유효 종료 시각이 없다. 후보에는 refresh_after_seconds가 있다 | 응답 후 경과 시간으로 표시 갱신, ETA 경과 시 확인 중 전환, 화면 복귀·재연결 시 재조회. 신선도 만료 기준의 서버 전달 방식은 연동 전 합의 |
-| 중간 | 방향 표시 | 후보에는 route_pattern_id·방문 순서·경로 이름이 있지만 방향 문구는 없다. 왕복 패턴 direction만으로 특정 방문 방향을 구분하기 어려울 수 있다 | 방문 기준 행선지 문구를 합의하고 정류장 신규 응답에 반영. 왕복 전체 방향을 각 방문 방향으로 오인하지 않음 |
+| ~~중간~~ | ~~방향 표시~~ | **해결 (2026-09-18)** — 정거장 조회 항목에 `next_stop_name`·`terminal_stop_name` | "다음 정거장 → 종점" 형태로 표시. 패턴 direction을 방문 방향으로 쓰지 않음 |
 | 중간 | 지도 자료 | 정거장 좌표·실제 승차 위치·GPX 자료가 미확정이다 | 좌표 없는 곳은 목록으로 제공. 지도 키·도메인 준비와 현장 좌표 확보를 별도로 추적 |
 | 공개 전 | 인증 보완 | 로그인 시도 제한·발급 토큰 즉시 차단은 기존 미완료 항목이다 | 현재 개발 로그인은 유지하고 공개 전 별도 처리 |
 

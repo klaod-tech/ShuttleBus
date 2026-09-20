@@ -1,4 +1,4 @@
-# 14 2장 2단계 구성(postgres·redis·api). 실시간 전송은 MVP 단일 백엔드라 api에 포함 (12 6장). web은 md_frontend 방침에 따라 화면 도안·서버 계약 확정 후 추가한다.
+# 14 2장 2단계 구성(postgres·redis·api·web). 실시간 전송은 MVP 단일 백엔드라 api에 포함 (12 6장).
 # 기동: docker compose up --build
 services:
   postgres:
@@ -55,6 +55,20 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+
+  # 학생 화면 (Next.js). NEXT_PUBLIC_* 는 빌드 시점에 번들에 박히므로 build args로 넘긴다 — 루트 .env에 둔다.
+  # 브라우저가 부르는 주소이므로 컨테이너 이름(api)이 아니라 호스트에서 보이는 주소(localhost:8000)여야 한다
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_KAKAO_MAP_JS_KEY: ${NEXT_PUBLIC_KAKAO_MAP_JS_KEY:-}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
 volumes:
   pgdata:

@@ -1,5 +1,7 @@
 # 02 · 정류장별 가까운 예정 버스 2개
 
+> **서버 계약 확정 (2026-09-18):** `GET /api/v1/stops/{stop_id}/upcoming?route_id&service_date`. 규칙과 필드는 [../md/11 11장](../md/11-boarding-candidates.md)이 소유한다. 아래 '제안'은 그 장에서 채택된 것이다 — 방향 합치기 + 행마다 `next_stop_name`, 대표 시각 도착→출발, `upcoming`(≤2)·`attention`·`reference_timetable`·`empty_reason` 분리.
+
 ## 목적
 
 출발지·도착지를 모두 고르기 전에도 정류장 하나를 눌러 다음 버스를 확인할 수 있게 한다. 현재 선택 노선·날짜를 기준으로 해당 정류장의 예정 방문을 최대 2개 표시한다. 전체 노선 통합 조회는 별도 확정 전 포함하지 않는다.
