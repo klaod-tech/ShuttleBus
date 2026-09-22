@@ -12,6 +12,9 @@ from app.models.observation import ObservationReview, StaffAccount
 from app.seed import route_id, stop_id
 from app.timeutil import SEOUL
 
+# 시험 계정 비밀번호는 실행할 때마다 만든다 — 저장소에 비밀번호처럼 보이는 문자열을 남기지 않는다 (2026-09-22)
+TEST_PASSWORD = "pytest-" + uuid.uuid4().hex
+
 DAY = "2026-09-14"
 T0 = datetime(2026, 9, 14, 7, 55, tzinfo=SEOUL)
 
@@ -20,7 +23,7 @@ T0 = datetime(2026, 9, 14, 7, 55, tzinfo=SEOUL)
 def accounts(db):
     made = {}
     for name, role in (("kim", "collector"), ("lee", "collector"), ("boss", "admin")):
-        a = StaffAccount(username=name, role=role, password_hash=hash_password("password123"))
+        a = StaffAccount(username=name, role=role, password_hash=hash_password(TEST_PASSWORD))
         db.add(a)
         made[name] = a
     db.flush()
@@ -52,7 +55,7 @@ class Collector:
 
     def __init__(self, client, username):
         self.client = client
-        res = client.post("/api/v1/auth/login", json={"username": username, "password": "password123"})
+        res = client.post("/api/v1/auth/login", json={"username": username, "password": TEST_PASSWORD})
         assert res.status_code == 200, res.text
         self.headers = {"Authorization": f"Bearer {res.json()['access_token']}"}
         self.sequence = 0
@@ -136,7 +139,7 @@ def test_login_and_auth_required(client, accounts, set_now):
     set_now(2026, 9, 14, 7, 0)
     bad = client.post("/api/v1/auth/login", json={"username": "kim", "password": "wrong"})
     assert bad.status_code == 401 and bad.json()["error"]["code"] == "AUTH_REQUIRED"
-    ok = client.post("/api/v1/auth/login", json={"username": "kim", "password": "password123"}).json()
+    ok = client.post("/api/v1/auth/login", json={"username": "kim", "password": TEST_PASSWORD}).json()
     assert ok["expires_in"] == 86400 and ok["role"] == "collector"
     res = client.post("/api/v1/collection-sessions", json={"trip_vehicle_id": str(uuid.uuid4())}, headers={"Idempotency-Key": "k"})
     assert res.status_code == 401

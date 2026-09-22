@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.accounts import upsert
 from app.config import settings
 from app.models.observation import StaffAccount
-from tests.test_collection import accounts  # noqa: F401
+from tests.test_collection import TEST_PASSWORD, accounts  # noqa: F401
 
 
 def login(client, username, password):
@@ -20,7 +20,7 @@ def test_lockout_after_repeated_failures_then_release(client, db, accounts, set_
         assert login(client, "kim", "wrong").status_code == 401
     # 세 번째 실패에서 잠긴다
     assert login(client, "kim", "wrong").status_code == 401
-    locked = login(client, "kim", "password123")
+    locked = login(client, "kim", TEST_PASSWORD)
     assert locked.status_code == 429, locked.text
     body = locked.json()["error"]
     assert body["code"] == "LOGIN_LOCKED" and body["retryable"] is True
@@ -30,7 +30,7 @@ def test_lockout_after_repeated_failures_then_release(client, db, accounts, set_
 
     # 잠금 시간이 지나면 맞는 비밀번호로 들어가고 카운터가 초기화된다
     set_now(2026, 9, 14, 7, 11)
-    ok = login(client, "kim", "password123")
+    ok = login(client, "kim", TEST_PASSWORD)
     assert ok.status_code == 200, ok.text
     db.expire_all()
     row = db.scalar(select(StaffAccount).where(StaffAccount.username == "kim"))
@@ -42,11 +42,11 @@ def test_failure_counter_resets_on_success(client, db, accounts, set_now, monkey
     set_now(2026, 9, 14, 7, 0)
     assert login(client, "kim", "wrong").status_code == 401
     assert login(client, "kim", "wrong").status_code == 401
-    assert login(client, "kim", "password123").status_code == 200
+    assert login(client, "kim", TEST_PASSWORD).status_code == 200
     # 성공으로 0이 됐으니 다시 두 번 틀려도 잠기지 않는다
     assert login(client, "kim", "wrong").status_code == 401
     assert login(client, "kim", "wrong").status_code == 401
-    assert login(client, "kim", "password123").status_code == 200
+    assert login(client, "kim", TEST_PASSWORD).status_code == 200
 
 
 def test_unknown_user_is_401_not_locked(client, accounts, set_now):  # noqa: F811
@@ -57,7 +57,7 @@ def test_unknown_user_is_401_not_locked(client, accounts, set_now):  # noqa: F81
 
 def test_password_reset_invalidates_existing_tokens(client, db, accounts, set_now):  # noqa: F811
     set_now(2026, 9, 14, 7, 0)
-    token = login(client, "kim", "password123").json()["access_token"]
+    token = login(client, "kim", TEST_PASSWORD).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     assert client.get("/api/v1/collection-sessions/00000000-0000-0000-0000-000000000000", headers=headers).status_code == 404
 

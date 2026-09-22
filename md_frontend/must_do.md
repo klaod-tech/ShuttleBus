@@ -53,7 +53,7 @@ cd web; npm ci; npm run dev                                           # 화면 :
 |---|---|---|---|
 | S1 | ~~정거장별 다음 버스 조회 API~~ | **완료 (2026-09-18)** — `GET /stops/{stop_id}/upcoming?route_id&service_date`. 방향 합쳐서 2개 + 각 행에 `next_stop_name`·`terminal_stop_name`, 대표 시각 도착→출발, `attention`·`reference_timetable`·`empty_reason` 분리. 계약은 ../md/11 11장 | [02](02-stop-upcoming.md), ../md/11-boarding-candidates.md 11장 |
 | S2 | ~~CORS 설정~~ | **완료 (2026-09-18)** — `CORS_ORIGINS`(쉼표 구분)로 REST·Socket.IO를 함께 허용. Docker는 루트 `.env`의 값을 넘긴다. 필요하면 `SOCKET_CORS_ORIGINS`로 따로 지정. `*`는 쓰지 않는다 | ../md/01-conventions.md 7장 |
-| S3 | **현재 개발 로그인 기준 확인 완료 (2026-09-18)** — 아이디·비밀번호 + 24시간 토큰 | 학생은 로그인 없음. 관리자 admin/admin, 입력자 user/1234로 개발 화면을 연동한다. 대체 로그인 방식은 현 단계의 선행 조건이 아니다. **개발용 임시 계정 `admin/admin`·`user/1234`(2026-09-18)를 공개 전에 지우거나 재설정한다** | ../md/01-conventions.md 5장, ../README.md |
+| S3 | **현재 개발 로그인 기준 확인 완료** — 아이디·비밀번호 + 24시간 토큰 | 학생은 로그인 없음. 개발 계정은 관리자 `admin`, 입력자 `user`이며 **비밀번호는 저장소·문서에 적지 않는다** (2026-09-22 비밀값 경보 이후). 각자 `python -m app.accounts create --username admin --role admin`으로 만든다 | ../md/01-conventions.md 5장, ../README.md |
 | S4 | ~~로그인 시도 제한·토큰 즉시 차단~~ | **완료 (2026-09-18)** — 5회 실패 15분 잠금 `LOGIN_LOCKED`(429, retryable). 화면은 이 코드에 "잠시 후 다시" 안내를 붙이고 대기 큐를 유지한다. 비밀번호 재설정 후 이전 토큰은 401 | ../md/01-conventions.md 5장 |
 | S5 | ~~멱등 기록 보존 기간~~ | **완료 (2026-09-18)** — 7일 확정, 정리 작업 구현 | — |
 

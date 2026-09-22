@@ -6,6 +6,8 @@
 
 ## 2026-09-22
 
+화면 인계 재검토: `dcbf375`·`8e26158`의 코드·md_frontend 변경을 대조하고 [기존 계획서 8절](../md_frontend/PLAN-screen-fixes.md#8-인계-변경-재검토와-다음-계획-2026-09-22)에 문구 정합성·실행 안내 보완과 미완료 검증 순서를 기록했다. 타입 검사·시험 6개 재통과. 현재 화면/API 연결은 거부되어 실지도·실데이터는 재확인하지 못했다. 제품 코드·DB 변경 없음.
+
 화면 3건 구현(사용자 진행 승인): 미검증 좌표의 마커·범례·목록 구분, 취소된 경로/정거장 요청의 상태 변경 차단, Next 16.3.5 전환과 ESLint·회귀 시험을 반영했다. 잠금 재설치·타입·lint·시험 6개·프로덕션 빌드 통과, audit 취약점 0건. 개발 브라우저에서 SDK 실패 대체 목록·카드·노선/날짜 변경 확인. 실제 카카오 지도와 Docker 실행은 미검증이며 사유·유지보수 경고는 [구현 결과](../md_frontend/PLAN-screen-fixes.md#7-구현-결과-2026-09-22)에 기록했다.
 
 연구 참고: [논문 기록](논문.md)에 논문 5편, 정상 GPS 중심·장애 보완 연구 방향, 핵심 질문 3가지의 답과 미확인 항목을 정리했다. IMPROVEMENTS의 중복 설명은 링크로 대체했다. 공개 자료를 확인했으며 전체 본문 검토·실험 재현·코드 시험은 수행하지 않았다. 설계 계약·구현 단계 변경은 없다.
@@ -65,6 +67,22 @@
 
 지도 타일·마커가 실제로 보이는지는 사용자 브라우저 확인이 남았다. 서버 시험·DB는 바꾸지 않았다.
 
+### 비밀값 노출 경보 대응
+
+GitGuardian이 `Generic Password` 노출을 알렸다 (푸시 2026-09-16). 이력을 확인한 결과
+**실제 비밀값은 올라가지 않았다** — `.env`·`web/.env.local`은 커밋된 적이 없고 카카오 키도 이력에 없다.
+
+| 조치 | 내용 |
+|---|---|
+| 문서에서 개발 계정 비밀번호 삭제 | README·ROADMAP·`md_frontend` 4곳. 아이디만 남기고 비밀번호는 각자 로컬에서 만든다 |
+| 시험 고정 비밀번호 제거 | `password123` → 실행마다 만드는 `pytest-<uuid>` (`TEST_PASSWORD`) |
+| 점검 기록 | [비밀값 점검](REVIEW-secrets-2026-09-22.md) — 무엇이 걸렸고 무엇이 아닌지, 남은 조치, 재발 방지 규칙 |
+
+경보 대상은 `main`(`d458754`)에 남아 있는 옛 `.env.example`의 `POSTGRES_PASSWORD=postgres`로 보인다.
+`develop`에서는 2026-09-18에 값을 비웠으므로 `main`을 갱신하면 사라진다. 남은 사용자 조치는 개발 계정 재설정이다.
+
+검증: 서버 시험 213개 통과 (비밀번호 상수 제거 후 재실행).
+
 ## 2026-09-21 (작업 1회 전)
 
 - 사전 검토 결과·실제 로컬 DB 건수·카카오맵 브라우저 확인·남은 결함은 [검토 문서](REVIEW-2026-09-21.md)에 기록했다.
@@ -86,7 +104,7 @@
 | 중복·불일치 정리 (2차 검토) | `_local` 5중 정의 → `timeutil.to_seoul` · `admin.stop_out` → `admin_stop_out` (build.stop_out과 이름 충돌) · `arrived_freshness_seconds`·`refresh_after_seconds` 모듈 상수 → `Settings` (14가 ConfigMap이라 함) · `01` 설정 인덱스에 코드에만 있던 5개 등재 · `CACHE_REBUILDING` 미구현 표시 · PLAN의 `/device-positions` → 07의 `/device/positions` · `app.survey --version` | API 경로 불일치 0 (P6 `/device/positions`만 문서 선행). **오류 코드는 0이 아니었다** — `HTTP_ERROR`가 미등재였고 2026-09-22에 `01`에 넣었다 |
 | 회차 보충 루프 | API 프로세스가 하루 한 번 오늘부터 14일치 회차를 보충 (`realtime/server.py`). K8s CronJob 전까지의 대체 | IMPROVEMENTS 한계 4 완화 — 학생 첫 조회가 회차를 생성하는 쓰기가 되지 않는다 |
 | CORS | `CORS_ORIGINS`(쉼표 구분)로 REST·Socket.IO 함께 허용. `SOCKET_CORS_ORIGINS`로 따로 지정 가능. `*` 금지 | must_do S2, `.env.example` |
-| 개발용 임시 계정 | `admin/admin`·`user/1234`. 개발 DB에만. `APP_ENV=production`은 8자 미만 거부 | **공개 전 재설정** (must_do S3) |
+| 개발용 임시 계정 | 관리자 `admin`, 입력자 `user`. 개발 DB에만 있고 **비밀번호는 문서에 적지 않는다** (2026-09-22, 저장소 비밀값 경보 이후). 각자 `python -m app.accounts create`로 만든다 | must_do S3 |
 | 정거장 좌표 등록 | `GET/POST /admin/stops`, CLI `app.stops set`. 재시드가 등록 좌표를 지우지 않는다 | 현재 0/22 등록 |
 | 멱등 기록 정리 | 보존 7일. `app.jobs purge-records`와 서버 내부 1시간 주기 | `01` 설정 인덱스 |
 | 환경 파일 정리 | `.gitignore`에 `.env.local` 계열 추가. `.env.example`은 값 없이 주석만 — 자리표시 비밀값 제거 | FR-IN-08 |

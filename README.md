@@ -82,14 +82,22 @@ web/
 | 정거장 카드 | `GET /api/v1/stops/{stop_id}/upcoming?route_id&service_date` — 계약은 [md/11 11장](md/11-boarding-candidates.md) |
 | 경로선 | `GET /api/v1/routes/{route_id}/path?service_date` — `verification`이 `none`이면 선을 긋지 않는다 ([md/10 5장](md/10-stop-discovery.md)) |
 
-## 개발용 임시 계정 (2026-09-18)
+## 개발용 계정 (2026-09-22 갱신)
 
-화면 작업 전 API를 직접 눌러 보기 위한 계정이다. **개발 DB와 Docker DB에만 만들었고 저장소에는 비밀번호 해시도 넣지 않는다.**
+화면 작업 전 API를 직접 눌러 보기 위한 계정이다. 개발 DB에만 있고 저장소에는 비밀번호도, 해시도 넣지 않는다.
 
 | 역할 | 아이디 | 비밀번호 |
 |---|---|---|
-| 관리자 | `admin` | `admin` |
-| 입력자 | `user` | `1234` |
+| 관리자 | `admin` | 각자 로컬에서 만든다 |
+| 입력자 | `user` | 각자 로컬에서 만든다 |
+
+```powershell
+cd api
+.\.venv\Scripts\python.exe -m app.accounts create --username admin --role admin      # 비밀번호 프롬프트
+.\.venv\Scripts\python.exe -m app.accounts create --username user --role collector
+```
+
+**비밀번호를 문서·코드·커밋 메시지에 적지 않는다.** 2026-09-22에 저장소 비밀값 탐지 경보를 받은 뒤 정한 규칙이다 — 자세한 내용은 [비밀값 점검](md/REVIEW-secrets-2026-09-22.md).
 
 `APP_ENV=production`에서는 8자 미만 비밀번호로 계정을 만들 수 없다(`app/accounts.py`). 외부 공개 전에 이 두 계정을 지우거나 비밀번호를 재설정한다 — `md_frontend/must_do.md` S3·S4.
 

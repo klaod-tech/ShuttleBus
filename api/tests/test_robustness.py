@@ -42,7 +42,7 @@ def test_malformed_token_claims_are_401(client, accounts, claims):  # noqa: F811
 
 
 def test_unknown_user_login_is_401(client, accounts):  # noqa: F811
-    res = client.post("/api/v1/auth/login", json={"username": "nobody", "password": "password123"})
+    res = client.post("/api/v1/auth/login", json={"username": "nobody", "password": "irrelevant-value"})
     assert res.status_code == 401
 
 
@@ -111,7 +111,7 @@ def test_notices_unknown_route_is_404(client):
 
 
 def test_dev_short_password_allowed_but_production_refuses():
-    """개발용 임시 계정(admin/admin, user/1234)은 허용, 운영에서는 8자 미만을 거부한다."""
+    """개발에서는 짧은 비밀번호를 경고와 함께 허용하고, 운영에서는 8자 미만을 거부한다."""
     from app.accounts import check_password
 
     assert check_password("admin", "development") is None
