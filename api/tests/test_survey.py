@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from sqlalchemy import select
 
 from app.models.reference import RoutePathPoint, RouteStop, RouteStopSegment, Stop, SurveyAnnotation, SurveyTrack, SurveyTrackPoint
@@ -124,13 +126,13 @@ def test_verify_marks_segments_from_second_track(db):
     second_data = generate_demo_gpx(stops, datetime(2026, 9, 19, 8, 0, tzinfo=timezone.utc), jitter_m=4.0).encode()
     second, created = import_gpx(db, second_data, RV, file_ref="b.gpx", device_label=None, note="demo")
     assert created
-    report = verify_path(db, second, max_deviation_m=30.0)
+    report = verify_path(db, second, max_deviation_m=30.0, allow_demo=True)  # 데모는 시험에서만 명시 허용
     assert report.verified == 4 and report.needs_interpretation == 0 and report.skipped == 0
     assert all(s.verification_status == "verified" for s in db.scalars(select(RouteStopSegment).where(RouteStopSegment.route_version_id == RV)))
     # 크게 어긋난 트랙은 needs_interpretation
     shifted = [(n, lat + 0.002, lng) for n, lat, lng in stops]  # 약 220m 북쪽
     third, _ = import_gpx(db, generate_demo_gpx(shifted, datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)).encode(), RV, file_ref="c.gpx", device_label=None, note="demo")
-    report = verify_path(db, third, max_deviation_m=30.0)
+    report = verify_path(db, third, max_deviation_m=30.0, allow_demo=True)
     assert report.verified == 0 and report.skipped == 4  # 정거장 자체가 150m 밖이라 대조 불가
 
 
@@ -152,3 +154,50 @@ def test_route_path_api(client, db, set_now):
     assert pattern["point_count"] == len(pattern["points"]) >= 5 and len(pattern["points"][0]) == 2
     assert len(pattern["segments"]) == 4 and pattern["verification"] == "unverified"
     assert client.get(f"/api/v1/routes/{rid}/path", params={"service_date": "2026-09-05"}).status_code == 200
+
+
+def test_verify_refuses_demo_and_self_verification(db):
+    """가짜 자료·자기 기록으로 verified를 만들지 않는다 (CLAUDE.md 5절, REVIEW-2026-09-21 P1)."""
+    seed_coords(db)
+    first, _ = import_gpx(db, demo_gpx(db), RV, file_ref="a.gpx", device_label=None, note="demo")
+    build_path(db, first)
+
+    with pytest.raises(SystemExit, match="데모 트랙"):
+        verify_path(db, first, max_deviation_m=30.0)
+
+    # 데모 표시를 지워도 경로를 만든 그 기록이면 거절한다
+    first.app_version, first.note, first.source_file_ref = "RealApp 1.0", None, "ride.gpx"
+    db.flush()
+    with pytest.raises(SystemExit, match="그 기록으로는"):
+        verify_path(db, first, max_deviation_m=30.0)
+
+    assert all(
+        s.verification_status == "unverified"
+        for s in db.scalars(select(RouteStopSegment).where(RouteStopSegment.route_version_id == RV))
+    )
+
+
+def test_route_path_verification_needs_full_coverage(client, db, set_now):
+    """구간이 빠져 있으면 전체를 verified로 표시하지 않는다 (REVIEW-2026-09-21 P1)."""
+    from app.seed import route_id as seed_route_id
+
+    seed_coords(db)
+    first, _ = import_gpx(db, demo_gpx(db), RV, file_ref="a.gpx", device_label=None, note="demo")
+    build_path(db, first)
+    for segment in db.scalars(select(RouteStopSegment).where(RouteStopSegment.route_version_id == RV)):
+        segment.verification_status = "verified"
+    db.flush()
+    set_now(2026, 9, 21, 9, 0)
+    params = {"service_date": "2026-09-21"}
+
+    def pattern_verification():
+        body = client.get(f"/api/v1/routes/{seed_route_id('cheonan_asan')}/path", params=params).json()
+        return next(p["verification"] for p in body["patterns"] if p["route_version_id"] == str(RV))
+
+    full = db.scalars(select(RouteStopSegment).where(RouteStopSegment.route_version_id == RV)).all()
+    assert len(full) >= 2
+    assert pattern_verification() == "verified"
+
+    db.delete(full[0])  # 좌표 없는 정거장 때문에 구간 하나가 없는 상황
+    db.flush()
+    assert pattern_verification() == "partial"

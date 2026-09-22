@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import field_validator
@@ -10,7 +11,13 @@ PLACEHOLDER_JWT_SECRETS = {DEV_JWT_SECRET, "change-me-to-a-long-random-string"}
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # 로컬 실행(cd api)도 Compose와 같은 루트 설정을 읽는다.
+    # api/.env가 있으면 로컬 재정의를 허용하고 실제 환경변수가 최우선이다.
+    model_config = SettingsConfigDict(
+        env_file=(Path(__file__).resolve().parents[2] / ".env", Path(__file__).resolve().parents[1] / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # 로컬 기본값은 .tools의 휴대용 PostgreSQL. Compose에서는 DATABASE_URL로 덮어쓴다.
     database_url: str = "postgresql+psycopg://postgres@localhost:55432/shuttlebus"
@@ -37,6 +44,14 @@ class Settings(BaseSettings):
 
     # 13 10장 — 실측 후 확정. None이면 검토 대상 판정을 하지 않는다
     session_review_grace_seconds: int | None = None
+
+    # 경로 조사 적재 시험값 (PLAN-route-data.md ②, 2026-09-22에 모듈 상수에서 이동).
+    # 실측 후 07의 max_route_deviation_m 등으로 대체한다. 지구 반경 같은 물리 상수는 코드에 둔다
+    survey_tolerance_m: float = 5.0
+    survey_max_speed_mps: float = 40.0
+    survey_max_deviation_m: float = 30.0
+    survey_stop_match_radius_m: float = 150.0
+    survey_dwell_speed_mps: float = 1.0
 
     # 로그인 시도 제한 (IMPROVEMENTS 한계 1, 2026-09-18). 연속 실패가 상한에 닿으면 잠금 시간 동안 거절한다
     login_max_failures: int = 5

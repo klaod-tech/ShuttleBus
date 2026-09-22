@@ -169,6 +169,7 @@
 | `OPERATION_STATE_CONFLICT` | 409 | 이미 완료·취소된 차량·회차에 완료·취소 요청, 완료되지 않은 차량의 완료 재검토 | false | `13` |
 | `CLOCK_EVIDENCE_INVALID` | 422 | 시계 검증 근거 형식·소속 불일치 | false | `02` |
 | `CACHE_REBUILDING` (미구현 — 현재는 캐시 누락 시 DB 스냅샷으로 바로 응답, `12` 5장) | 503 | 캐시 복원 중 | true | `12` |
+| `HTTP_ERROR` | 그대로 | 위 코드에 해당하지 않는 HTTP 예외의 마지막 봉투 (예: 405 허용되지 않은 메서드). 새 상황이 자주 나오면 전용 코드를 만든다 | false | `01` |
 | `INTERNAL_ERROR` | 500 | 처리하지 못한 서버 오류. 내부 정보는 응답에 싣지 않고 로그로만 남김 | true | `01` |
 
 **날짜 자료 미확보는 404가 아니다.** 200 응답의 `schedule_status = unknown`으로 표현한다. 404는 존재하지 않는 리소스에만 쓴다.
@@ -259,6 +260,7 @@
 | `max_skip_stops` | 한 번에 건너뛸 수 있는 방문 수 | 시험값 | `06` |
 | `refresh_after_seconds` | 후보를 다시 조회할 때인가 | 시험값 | `11` |
 | `gps_report_interval_seconds` | 단말 전송 주기 | 시험값 | `07` |
+| `survey_tolerance_m`, `survey_max_speed_mps`, `survey_max_deviation_m`, `survey_stop_match_radius_m`, `survey_dwell_speed_mps` | GPX 적재의 단순화·이상치·검증 기준 | 시험값 (2026-09-22에 모듈 상수에서 이동). 실측 후 `07` 값으로 대체 | `PLAN-route-data` |
 | `geofence_radius_m` | 정거장 반경. 정거장별로 다를 수 있음 | 시험값 | `07` |
 | `detection_delay_seconds` | 재정렬 지연 창 | 시험값 | `07` |
 | `gps_stale_after_seconds` | GPS 좌표가 만료됐는가 | 시험값 | `07` |

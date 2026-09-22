@@ -55,7 +55,7 @@ npm run dev                      # http://localhost:3000 — API는 별도로 uv
 npm run typecheck                # 타입 검사
 ```
 
-API 쪽은 루트 `.env`에 `CORS_ORIGINS=http://localhost:3000`이 있어야 브라우저에서 호출된다 (이미 있음).
+API 쪽은 루트 `.env`에 `CORS_ORIGINS=http://localhost:3000`이 있어야 브라우저에서 호출된다. 실행 폴더와 무관하게 루트 `.env`를 읽고, `api/.env`와 프로세스 환경변수가 차례로 우선한다. 실제 데이터·카카오맵 점검 결과는 [2026-09-21 검토](md/REVIEW-2026-09-21.md)를 참고한다.
 
 ```text
 web/

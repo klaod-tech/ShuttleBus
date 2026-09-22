@@ -5,7 +5,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.calendar.resolve import running_trips
@@ -273,9 +273,16 @@ def get_route_path(
             segments = session.scalars(
                 select(RouteStopSegment).where(RouteStopSegment.route_version_id == version.route_version_id).order_by(RouteStopSegment.path_from_seq)
             ).all()
+            # 좌표 없는 정거장 때문에 구간이 아예 안 만들어진 경우가 있다. 있는 구간만 보고
+            # 전체를 verified로 표시하지 않는다 (REVIEW-2026-09-21 P1, 2026-09-22 수정)
+            stop_count = session.scalar(
+                select(func.count()).select_from(RouteStop).where(RouteStop.route_version_id == version.route_version_id)
+            )
+            expected_segments = max((stop_count or 0) - 1, 0)
+            covered = expected_segments > 0 and len(segments) >= expected_segments
             if not points:
                 verification = "none"
-            elif segments and all(s.verification_status == "verified" for s in segments):
+            elif covered and all(s.verification_status == "verified" for s in segments):
                 verification = "verified"
             elif any(s.verification_status == "verified" for s in segments):
                 verification = "partial"

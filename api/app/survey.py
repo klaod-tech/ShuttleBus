@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import SessionLocal
 from app.models.reference import (
     RoutePathPoint,
@@ -36,11 +37,15 @@ from app.models.reference import (
 from app.seed import version_id as seed_version_id
 
 EARTH_R = 6_371_000.0
-DEFAULT_TOLERANCE_M = 5.0  # IMPROVEMENTS — 시작값
-DEFAULT_MAX_SPEED_MPS = 40.0  # 시내 셔틀에서 물리적으로 불가능한 속도 (07 max_plausible_speed_mps 미정 → 적재기 자체 기준)
-DEFAULT_MAX_DEVIATION_M = 30.0  # verify 기본. 실측 후 07 max_route_deviation_m로 대체
-STOP_MATCH_RADIUS_M = 150.0  # 정거장 좌표에서 이만큼 안의 경로 점만 그 정거장으로 본다
-DWELL_SPEED_MPS = 1.0  # 이 속도 이하를 정차로 본다
+# 시험값은 Settings에 있다 (01 설정 인덱스, 14 4장 ConfigMap). 여기서는 기본 인자로만 읽는다
+DEFAULT_TOLERANCE_M = settings.survey_tolerance_m
+DEFAULT_MAX_SPEED_MPS = settings.survey_max_speed_mps
+DEFAULT_MAX_DEVIATION_M = settings.survey_max_deviation_m
+STOP_MATCH_RADIUS_M = settings.survey_stop_match_radius_m
+DWELL_SPEED_MPS = settings.survey_dwell_speed_mps
+
+# 같은 기록으로 자기 자신을 검증하지 못하게 하는 기준 — 경로 점 시각이 이 비율 이상 겹치면 같은 기록으로 본다
+SAME_RECORDING_OVERLAP = 0.9
 
 
 # ---------- 기하 ----------
@@ -417,12 +422,48 @@ class VerifyReport:
     max_deviation_by_segment: dict[str, float]
 
 
-def verify_path(session: Session, track: SurveyTrack, *, max_deviation_m: float = DEFAULT_MAX_DEVIATION_M, max_speed_mps: float = DEFAULT_MAX_SPEED_MPS) -> VerifyReport:
-    """두 번째 트랙으로 구간을 검증한다. 구간 안의 점이 전부 폴리라인에서 max_deviation_m 안이면 verified."""
+def is_demo_track(track: SurveyTrack) -> bool:
+    """gpx-demo가 만든 가짜 기록인지. creator는 app_version에 저장된다 (generate_demo_gpx)."""
+    marks = (track.app_version or "", track.note or "", track.source_file_ref or "")
+    return any("demo" in m.lower() for m in marks)
+
+
+def _same_recording(session: Session, track: SurveyTrack, path: list[RoutePathPoint]) -> bool:
+    """경로를 만든 그 기록으로 다시 검증하려는 경우. 경로 점 시각은 원본 점의 측정 시각을 그대로 복사한다.
+
+    출처 트랙 ID 열이 없어 시각 겹침으로 판정한다. 열을 추가하려면 스키마 변경 승인이 필요하다
+    (CLAUDE.md 2절, REVIEW-2026-09-21 P1).
+    """
+    path_times = {p.recorded_at for p in path if p.recorded_at is not None}
+    if not path_times:
+        return False
+    track_times = set(
+        session.scalars(select(SurveyTrackPoint.measured_at).where(SurveyTrackPoint.survey_track_id == track.survey_track_id))
+    )
+    return len(path_times & track_times) / len(path_times) >= SAME_RECORDING_OVERLAP
+
+
+def verify_path(
+    session: Session,
+    track: SurveyTrack,
+    *,
+    max_deviation_m: float = DEFAULT_MAX_DEVIATION_M,
+    max_speed_mps: float = DEFAULT_MAX_SPEED_MPS,
+    allow_demo: bool = False,
+) -> VerifyReport:
+    """두 번째 트랙으로 구간을 검증한다. 구간 안의 점이 전부 폴리라인에서 max_deviation_m 안이면 verified.
+
+    **가짜 자료와 자기 자신으로는 verified를 만들지 않는다** (CLAUDE.md 5절, 2026-09-22).
+    데모 트랙은 거절하고(시험은 allow_demo로 명시), 경로를 만든 그 기록으로 검증하는 것도 거절한다.
+    """
     rv = track.route_version_id
     path = list(session.scalars(select(RoutePathPoint).where(RoutePathPoint.route_version_id == rv).order_by(RoutePathPoint.path_seq)))
     if not path:
         raise SystemExit("먼저 build-path로 경로를 만든다")
+    if is_demo_track(track) and not allow_demo:
+        raise SystemExit("데모 트랙으로는 검증하지 않는다 — 실제 탑승 기록을 쓴다 (시험은 --allow-demo)")
+    if _same_recording(session, track, path):
+        raise SystemExit("경로를 만든 그 기록으로는 검증하지 않는다 — 다른 탑승의 트랙이 필요하다")
     path_coords = [(p.latitude, p.longitude) for p in path]
     raw = list(session.scalars(select(SurveyTrackPoint).where(SurveyTrackPoint.survey_track_id == track.survey_track_id).order_by(SurveyTrackPoint.point_seq)))
     kept = remove_outliers(raw, max_speed_mps)
@@ -490,9 +531,10 @@ def main() -> None:
     build.add_argument("--track", required=True)
     build.add_argument("--tolerance", type=float, default=DEFAULT_TOLERANCE_M)
     build.add_argument("--max-speed", type=float, default=DEFAULT_MAX_SPEED_MPS)
-    ver = sub.add_parser("verify", help="두 번째 트랙으로 구간 검증")
+    ver = sub.add_parser("verify", help="두 번째 트랙으로 구간 검증 (데모·자기 기록 거절)")
     ver.add_argument("--track", required=True)
     ver.add_argument("--max-deviation", type=float, default=DEFAULT_MAX_DEVIATION_M)
+    ver.add_argument("--allow-demo", action="store_true", help="데모 트랙으로도 검증 (시험 전용)")
     sub.add_parser("list", help="트랙과 경로 상태")
     args = parser.parse_args()
 
@@ -530,7 +572,7 @@ def main() -> None:
             track = session.get(SurveyTrack, uuid.UUID(args.track))
             if track is None:
                 raise SystemExit("트랙이 없다")
-            r = verify_path(session, track, max_deviation_m=args.max_deviation)
+            r = verify_path(session, track, max_deviation_m=args.max_deviation, allow_demo=args.allow_demo)
             session.commit()
             print(f"verified {r.verified}, needs_interpretation {r.needs_interpretation}, 대조 불가 {r.skipped}")
             for name, d in r.max_deviation_by_segment.items():
