@@ -77,7 +77,7 @@ export default function StopCard({ stopId, routeId, serviceDate, onClose }: Prop
   const [data, setData] = useState<StopUpcomingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [receivedAt, setReceivedAt] = useState<number>(0);
-  const [tick, setTick] = useState(0);
+  const [now, setNow] = useState(0);
 
   // 조회 + refresh_after_seconds 주기 재조회. 늦게 온 이전 응답이 새 선택을 덮지 않게 요청마다 AbortController
   useEffect(() => {
@@ -91,7 +91,9 @@ export default function StopCard({ stopId, routeId, serviceDate, onClose }: Prop
         if (cancelled) return;
         setData(body);
         setError(null);
-        setReceivedAt(Date.now());
+        const received = Date.now();
+        setReceivedAt(received);
+        setNow(received);
         timer = setTimeout(load, Math.max(5, body.refresh_after_seconds) * 1000);
       } catch (e) {
         if (cancelled || (e instanceof DOMException && e.name === "AbortError")) return;
@@ -110,12 +112,10 @@ export default function StopCard({ stopId, routeId, serviceDate, onClose }: Prop
 
   // 남은 시간 표시는 서버 시각 + 경과 시간으로 계산한다 (초 단위 숫자는 노출하지 않음)
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 15_000);
+    const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
-  void tick;
-
-  const elapsedMs = receivedAt ? Date.now() - receivedAt : 0;
+  const elapsedMs = receivedAt ? Math.max(0, now - receivedAt) : 0;
 
   return (
     <section className="card" aria-live="polite">

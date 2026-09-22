@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { PatternPath } from "@/lib/api";
 
@@ -29,7 +29,7 @@ const SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&autoload=fa
 const DEFAULT_CENTER = { lat: 36.7998, lng: 127.0745 };
 
 /**
- * 정거장 점만 찍는다. 경로 폴리라인·직선 연결은 그리지 않는다 (must_do F8, 2026-09-18 지시).
+ * 정거장 마커와 서버가 제공한 경로만 표시한다. 정거장을 임의로 잇지 않는다.
  * 좌표가 없는 정거장은 마커를 만들지 않고 목록으로만 제공한다.
  */
 export default function KakaoMap({ stops, paths = [], selectedStopId, onSelect }: Props) {
@@ -37,7 +37,7 @@ export default function KakaoMap({ stops, paths = [], selectedStopId, onSelect }
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
   const polylinesRef = useRef<any[]>([]);
-  const [pathLabels, setPathLabels] = useState<string[]>([]);
+  const pathLabels = useMemo(() => [...new Set(paths.filter((p) => p.verification !== "none" && p.points.length >= 2).map((p) => pathStyle(p).label).filter((label): label is string => label !== null))], [paths]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(KEY ? null : "카카오맵 키가 설정되지 않았습니다 (web/.env.local).");
 
@@ -60,21 +60,23 @@ export default function KakaoMap({ stops, paths = [], selectedStopId, onSelect }
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const kakao = window.kakao;
+    const markers = markersRef.current;
     for (const marker of markersRef.current.values()) marker.setMap(null);
     markersRef.current.clear();
     if (stops.length === 0) return;
     const bounds = new kakao.maps.LatLngBounds();
     for (const s of stops) {
       const position = new kakao.maps.LatLng(s.lat, s.lng);
-      const marker = new kakao.maps.Marker({ map: mapRef.current, position, title: s.name, clickable: true });
+      const marker = new kakao.maps.Marker({ map: mapRef.current, position, title: s.verified ? s.name : `${s.name} · 좌표 확인 필요`, clickable: true,
+        image: new kakao.maps.MarkerImage(s.verified ? "/markers/verified.svg" : "/markers/unverified.svg", new kakao.maps.Size(32, 40), { offset: new kakao.maps.Point(16, 40) }) });
       kakao.maps.event.addListener(marker, "click", () => onSelect(s.stopId));
       markersRef.current.set(s.stopId, marker);
       bounds.extend(position);
     }
     mapRef.current.setBounds(bounds, 40, 40, 40, 40);
     return () => {
-      for (const marker of markersRef.current.values()) marker.setMap(null);
-      markersRef.current.clear();
+      for (const marker of markers.values()) marker.setMap(null);
+      markers.clear();
     };
   }, [ready, stops, onSelect]);
 
@@ -84,7 +86,6 @@ export default function KakaoMap({ stops, paths = [], selectedStopId, onSelect }
     const kakao = window.kakao;
     for (const line of polylinesRef.current) line.setMap(null);
     polylinesRef.current = [];
-    const labels = new Set<string>();
     for (const p of paths) {
       if (p.verification === "none" || p.points.length < 2) continue;
       const style = pathStyle(p);
@@ -97,9 +98,7 @@ export default function KakaoMap({ stops, paths = [], selectedStopId, onSelect }
         strokeStyle: style.strokeStyle,
       });
       polylinesRef.current.push(line);
-      if (style.label) labels.add(style.label);
     }
-    setPathLabels([...labels]);
     return () => {
       for (const line of polylinesRef.current) line.setMap(null);
       polylinesRef.current = [];
@@ -115,10 +114,12 @@ export default function KakaoMap({ stops, paths = [], selectedStopId, onSelect }
 
   return (
     <div className="map-wrap">
-      {KEY && <Script src={SDK_URL} strategy="afterInteractive" onLoad={init} onError={() => setFailed("카카오맵 SDK 로드 실패")} />}
+      {KEY && <Script src={SDK_URL} strategy="afterInteractive" onReady={init} onError={() => setFailed("카카오맵 SDK 로드 실패")} />}
       <div ref={containerRef} className="map" aria-label="정거장 지도" />
-      {pathLabels.length > 0 && (
+      {(pathLabels.length > 0 || stops.length > 0) && (
         <div className="map-legend" role="note">
+          {stops.some((s) => s.verified) && <span className="tag">● 확인된 좌표</span>}
+          {stops.some((s) => !s.verified) && <span className="tag warn">△ 좌표 확인 필요</span>}
           {pathLabels.map((l) => (
             <span key={l} className="tag warn">{l}</span>
           ))}

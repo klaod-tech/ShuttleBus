@@ -35,11 +35,13 @@ export default function HomePage() {
     const controller = new AbortController();
     listRoutes(controller.signal)
       .then((rs) => {
+        if (controller.signal.aborted) return;
         setRoutes(rs);
         const first = rs.find((r) => r.name.includes(DEFAULT_ROUTE_NAME)) ?? rs[0];
         if (first) setRouteId(first.route_id);
       })
       .catch((e) => {
+        if (controller.signal.aborted) return;
         if (!(e instanceof DOMException && e.name === "AbortError")) setError("서버에 연결할 수 없습니다. API 주소와 CORS 설정을 확인하세요.");
       });
     return () => controller.abort();
@@ -53,15 +55,20 @@ export default function HomePage() {
     setSelectedStopId(null);
     // 경로는 있으면 그리고 없으면 조용히 넘어간다 — 경로 조회 실패가 정거장 목록을 막지 않는다
     getRoutePath(routeId, serviceDate, controller.signal)
-      .then((body) => setPaths(body.patterns))
-      .catch(() => setPaths([]));
+      .then((body) => {
+        if (!controller.signal.aborted) setPaths(body.patterns);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPaths([]);
+      });
     getRouteStops(routeId, serviceDate, controller.signal)
       .then((body) => {
+        if (controller.signal.aborted) return;
         setStopsBody(body);
         setError(null);
       })
       .catch((e) => {
-        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (controller.signal.aborted || (e instanceof DOMException && e.name === "AbortError")) return;
         setError(e instanceof ApiRequestError ? e.error.message : "정거장 목록을 불러오지 못했습니다.");
       });
     return () => controller.abort();
@@ -116,7 +123,7 @@ export default function HomePage() {
                       <button type="button" onClick={() => onSelect(s.stop_id)} aria-pressed={selectedStopId === s.stop_id}>
                         <span className="seq">{i + 1}</span>
                         {s.stop_name}
-                        {s.latitude === null && <span className="tag warn" style={{ marginLeft: 6 }}>좌표 확인 필요</span>}
+                        {(s.latitude === null || s.longitude === null || s.verification_status !== "verified") && <span className="tag warn" style={{ marginLeft: 6 }}>좌표 확인 필요</span>}
                       </button>
                     </li>
                   ))}
