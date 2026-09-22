@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.clock import get_now
 from app.config import settings
 from app.db import SessionLocal
 from app.models.reference import (
@@ -31,6 +32,7 @@ from app.models.reference import (
     RouteVersion,
     Stop,
     SurveyAnnotation,
+    SurveyPathBuild,
     SurveyTrack,
     SurveyTrackPoint,
 )
@@ -407,6 +409,18 @@ def build_path(session: Session, track: SurveyTrack, *, tolerance_m: float = DEF
         ann.resolved_route_stop_id, ann.verification_status = best[0].route_stop_id, "unverified"
         ann.linked_point_seq = min(near, key=lambda p: haversine_m(ann.latitude, ann.longitude, p.latitude, p.longitude)).point_seq
         resolved += 1
+    # 이 경로가 어느 기록에서 나왔는지 남긴다 (⓪→① 예외, 2026-09-22 승인).
+    # 검증이 '다른 탑승인가'를 시각 겹침 추정이 아니라 이 ID로 판정한다
+    session.execute(delete(SurveyPathBuild).where(SurveyPathBuild.route_version_id == rv))
+    session.add(
+        SurveyPathBuild(
+            route_version_id=rv,
+            survey_track_id=track.survey_track_id,
+            built_at=get_now(),
+            tolerance_m=tolerance_m,
+            point_count=len(simplified),
+        )
+    )
     session.flush()
     return BuildReport(len(raw), len(kept), len(simplified), segments, unmapped, resolved, len(annotations))
 
@@ -428,13 +442,19 @@ def is_demo_track(track: SurveyTrack) -> bool:
     return any("demo" in m.lower() for m in marks)
 
 
-def independence_problem(session: Session, track: SurveyTrack, path: list[RoutePathPoint]) -> str | None:
+def independence_problem(
+    session: Session, track: SurveyTrack, path: list[RoutePathPoint], build: SurveyPathBuild | None
+) -> str | None:
     """검증 트랙이 경로를 만든 기록과 **다른 기록임을 확인할 수 없으면** 사유를 돌려준다.
 
-    경로 점 시각은 원본 점의 측정 시각을 그대로 복사하므로 겹침률로 같은 기록을 잡아낸다.
-    시각이 없으면 '확인 불가'이며 통과시키지 않는다 — 확인하지 못한 것을 독립 기록으로 보지 않는다
-    (REVIEW-2026-09-22 P1). 출처 트랙 ID 열을 두는 것이 정확하고 그것은 스키마 승인 사항이다.
+    1차 판정은 `survey_path_builds`의 출처 트랙 ID다 (2026-09-22 승인). 출처가 없으면 통과시키지 않는다.
+    같은 녹화를 파일만 바꿔 두 번 적재하면 ID는 달라지므로, 측정 시각 겹침도 함께 본다 —
+    겹침률은 보조 검사이며 그것만으로 독립을 보장하지 않는다.
     """
+    if build is None:
+        return "경로의 출처 기록이 없다 — build-path를 다시 실행해 출처를 남긴 뒤 검증한다"
+    if build.survey_track_id == track.survey_track_id:
+        return "경로를 만든 그 기록으로는 검증하지 않는다 — 다른 탑승의 트랙이 필요하다"
     path_times = {p.recorded_at for p in path if p.recorded_at is not None}
     if not path_times:
         return "경로 점에 측정 시각이 없어 같은 기록인지 확인할 수 없다"
@@ -448,7 +468,7 @@ def independence_problem(session: Session, track: SurveyTrack, path: list[RouteP
     if not track_times:
         return "검증 트랙에 측정 시각이 없어 같은 기록인지 확인할 수 없다"
     if len(path_times & track_times) / len(path_times) >= SAME_RECORDING_OVERLAP:
-        return "경로를 만든 그 기록으로는 검증하지 않는다 — 다른 탑승의 트랙이 필요하다"
+        return "측정 시각이 경로와 거의 같다 — 같은 녹화를 다시 적재한 것으로 본다"
     return None
 
 
@@ -470,10 +490,15 @@ def verify_path(
     path = list(session.scalars(select(RoutePathPoint).where(RoutePathPoint.route_version_id == rv).order_by(RoutePathPoint.path_seq)))
     if not path:
         raise SystemExit("먼저 build-path로 경로를 만든다")
-    if is_demo_track(track) and not allow_demo:
+    build = session.get(SurveyPathBuild, rv)
+    source_track = session.get(SurveyTrack, build.survey_track_id) if build else None
+    if not allow_demo:
         # allow_demo는 시험 함수 전용이다. CLI에는 우회 옵션을 두지 않는다 (REVIEW-2026-09-22 P1)
-        raise SystemExit("데모 트랙으로는 검증하지 않는다 — 실제 탑승 기록을 쓴다")
-    problem = independence_problem(session, track, path)
+        if is_demo_track(track):
+            raise SystemExit("데모 트랙으로는 검증하지 않는다 — 실제 탑승 기록을 쓴다")
+        if source_track is not None and is_demo_track(source_track):
+            raise SystemExit("데모 기록으로 만든 경로는 검증하지 않는다 — 실제 기록으로 build-path를 다시 한다")
+    problem = independence_problem(session, track, path, build)
     if problem:
         raise SystemExit(problem)
     path_coords = [(p.latitude, p.longitude) for p in path]
@@ -511,6 +536,11 @@ def verify_path(
         else:
             seg.verification_status = "needs_interpretation"
             report.needs_interpretation += 1
+    if report.verified:
+        # 누가 검증했는지도 출처와 같은 행에 남긴다 (이후 재검증·감사에서 필요)
+        build.verified_by_track_id = track.survey_track_id
+        build.verified_at = get_now()
+        build.verify_max_deviation_m = max(report.max_deviation_by_segment.values(), default=None)
     session.flush()
     return report
 

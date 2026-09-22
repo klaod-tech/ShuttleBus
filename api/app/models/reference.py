@@ -185,6 +185,26 @@ class SurveyTrackPoint(Base):
     raw_extensions: Mapped[str | None] = mapped_column(Text)
 
 
+class SurveyPathBuild(Base):
+    """정제 경로가 **어느 조사 기록에서 나왔는지** (2026-09-22 승인).
+
+    ⓪ 조사 층에 두어 ①을 가리킨다 — 참조 방향의 유일한 예외다 (15 1장, FR-DM-01).
+    경로 버전마다 한 행이며 build-path가 다시 만들 때 덮어쓴다. 검증한 트랙도 여기 적어
+    같은 기록으로 자기 자신을 검증하는 것을 시각 겹침 추정이 아니라 ID로 막는다.
+    """
+
+    __tablename__ = "survey_path_builds"
+
+    route_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("route_versions.route_version_id"), primary_key=True)
+    survey_track_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("survey_tracks.survey_track_id"))
+    built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    tolerance_m: Mapped[float] = mapped_column(Double)
+    point_count: Mapped[int] = mapped_column(Integer)
+    verified_by_track_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("survey_tracks.survey_track_id"))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verify_max_deviation_m: Mapped[float | None] = mapped_column(Double)
+
+
 class SurveyAnnotation(Base):
     __tablename__ = "survey_annotations"
     __table_args__ = (

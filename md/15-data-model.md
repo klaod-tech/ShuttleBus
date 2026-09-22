@@ -30,7 +30,16 @@
 
 ⓪은 사람이 직접 타서 남긴 자료이고 ③은 운행 중 자동으로 쌓이는 자료다. **⓪은 관측(`location_events`)을 만들지 않는다.** 정제 결과만 ①로 올라간다.
 
-**참조 방향의 유일한 예외는 ⓪→①이다.** `survey_tracks.route_version_id`와 `survey_annotations.resolved_route_stop_id`는 그 조사가 어느 노선 버전·방문을 대상으로 했는지 가리킨다 (`04` 1장). 조사 자료가 기준 데이터를 고치지는 않으므로 쓰기 방향 규칙은 그대로다. FR-DM-01은 이 두 연결만 허용한다.
+**참조 방향의 유일한 예외는 ⓪→①이다.** `survey_tracks.route_version_id`와 `survey_annotations.resolved_route_stop_id`는 그 조사가 어느 노선 버전·방문을 대상으로 했는지 가리킨다 (`04` 1장). 조사 자료가 기준 데이터를 고치지는 않으므로 쓰기 방향 규칙은 그대로다.
+
+`survey_path_builds`(⓪, 2026-09-22 승인)도 같은 예외다 — 정제 경로가 **어느 조사 기록에서 나왔는지**를 남긴다.
+
+```
+survey_path_builds(route_version_id PK→①, survey_track_id→⓪, built_at, tolerance_m, point_count,
+                   verified_by_track_id→⓪, verified_at, verify_max_deviation_m)
+```
+
+경로 버전마다 한 행이며 `build-path`가 덮어쓴다. 열을 `route_path_points`에 두면 ①→⓪ 참조가 되어 FR-DM-01을 어기므로 조사 층에 둔다. 검증(`verify`)은 이 `survey_track_id`로 '다른 탑승인가'를 판정한다 — 측정 시각 겹침은 같은 녹화를 두 번 적재한 경우를 잡는 보조 검사다.
 
 ## 2. 뼈대
 

@@ -6,6 +6,7 @@ LAYERS: dict[str, int] = {
     "survey_tracks": 0,
     "survey_track_points": 0,
     "survey_annotations": 0,
+    "survey_path_builds": 0,
     "stops": 1,
     "routes": 1,
     "route_patterns": 1,

@@ -124,7 +124,7 @@ cd api; $env:PYTHONUTF8='1'
 |---|---|---|
 | 1 | 이 계획 | 완료 |
 | 2 | ① `samples/stops-provisional.json` + `app.stops import` 덮어쓰기 보호 | 완료 |
-| 3 | ② `app/survey.py` — gpx-demo · import · build-path · verify · list | 완료. 검증은 데모 트랙과 '출처 확인 불가'를 거절한다 (2026-09-22) |
+| 3 | ② `app/survey.py` — gpx-demo · import · build-path · verify · list | 완료. `build-path`가 출처를 `survey_path_builds`에 남기고, `verify`는 출처 트랙 ID로 자기검증·데모 경로·출처 미기록을 거절한다 (2026-09-22, 마이그레이션 0008) |
 | 4 | ② `tests/test_survey.py` — 12개 | 완료·통과 (2026-09-22) |
 | 5 | ③ `GET /routes/{id}/path` + 시험 | 완료·통과. 구간이 정거장 수−1보다 적으면 `partial` (2026-09-22) |
 | 6 | ③ `web/` 폴리라인 + `10` 5장 표 | 완료 |

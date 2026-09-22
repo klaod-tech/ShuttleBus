@@ -6,7 +6,7 @@ import pytest
 
 from sqlalchemy import select
 
-from app.models.reference import RoutePathPoint, RouteStop, RouteStopSegment, Stop, SurveyAnnotation, SurveyTrack, SurveyTrackPoint
+from app.models.reference import RoutePathPoint, RouteStop, RouteStopSegment, Stop, SurveyAnnotation, SurveyPathBuild, SurveyTrack, SurveyTrackPoint
 from app.seed import route_id, stop_id, version_id
 from app.stops import set_location
 from app.survey import build_path, douglas_peucker, generate_demo_gpx, import_gpx, parse_gpx, verify_path
@@ -214,7 +214,7 @@ NO_TIME_GPX = b"""<?xml version="1.0"?>
 
 
 def test_verify_refuses_when_provenance_cannot_be_checked(db):
-    """측정 시각이 없어 같은 기록인지 확인할 수 없으면 통과시키지 않는다 (REVIEW-2026-09-22 P1)."""
+    """측정 시각이 없으면 같은 녹화인지 보조 검사조차 못 한다 — 통과시키지 않는다 (REVIEW-2026-09-22 P1)."""
     seed_coords(db)
     first, _ = import_gpx(db, NO_TIME_GPX, RV, file_ref="ride-a.gpx", device_label=None, note=None)
     build_path(db, first)
@@ -227,6 +227,37 @@ def test_verify_refuses_when_provenance_cannot_be_checked(db):
         s.verification_status != "verified"
         for s in db.scalars(select(RouteStopSegment).where(RouteStopSegment.route_version_id == RV))
     )
+
+
+def test_build_records_provenance_and_verify_uses_the_track_id(db):
+    """경로의 출처를 ⓪ survey_path_builds에 남기고, 자기검증은 시각 추정이 아니라 그 ID로 막는다 (2026-09-22 승인)."""
+    seed_coords(db)
+    first, _ = import_gpx(db, demo_gpx(db), RV, file_ref="a.gpx", device_label=None, note="demo")
+    build_path(db, first)
+    build = db.get(SurveyPathBuild, RV)
+    assert build is not None and build.survey_track_id == first.survey_track_id
+    assert build.verified_by_track_id is None and build.point_count > 0
+
+    with pytest.raises(SystemExit, match="그 기록으로는"):  # ID가 같으면 시각 겹침을 보기 전에 거절
+        verify_path(db, first, max_deviation_m=30.0, allow_demo=True)
+
+    rows = db.execute(select(Stop).join(RouteStop, RouteStop.stop_id == Stop.stop_id).where(RouteStop.route_version_id == RV).order_by(RouteStop.stop_sequence)).scalars().all()
+    stops = [(x.name, x.latitude, x.longitude) for x in rows]
+    second, _ = import_gpx(db, generate_demo_gpx(stops, datetime(2026, 9, 23, 8, 0, tzinfo=timezone.utc), jitter_m=4.0).encode(), RV, file_ref="b.gpx", device_label=None, note="demo")
+    report = verify_path(db, second, max_deviation_m=30.0, allow_demo=True)
+    assert report.verified == 4
+    db.refresh(build)
+    assert build.verified_by_track_id == second.survey_track_id and build.verified_at is not None
+
+
+def test_verify_refuses_path_built_from_demo(db):
+    """경로 자체가 데모에서 나왔으면 실제 트랙으로도 검증하지 않는다."""
+    seed_coords(db)
+    demo, _ = import_gpx(db, demo_gpx(db), RV, file_ref="demo.gpx", device_label=None, note="demo")
+    build_path(db, demo)
+    real, _ = import_gpx(db, NO_TIME_GPX, RV, file_ref="real.gpx", device_label=None, note=None)
+    with pytest.raises(SystemExit, match="데모 기록으로 만든 경로"):
+        verify_path(db, real, max_deviation_m=30.0)
 
 
 def test_cli_has_no_demo_bypass():
