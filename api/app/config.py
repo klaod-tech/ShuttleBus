@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     survey_max_deviation_m: float = 30.0
     survey_stop_match_radius_m: float = 150.0
     survey_dwell_speed_mps: float = 1.0
+    # 검증 트랙이 경로를 만든 그 기록인지 판정하는 시각 겹침 비율. 겹침률만으로 독립 기록을 보장하지는
+    # 못한다 — 출처 트랙 ID 열을 두는 편이 정확하고, 그것은 스키마 승인 사항이다 (REVIEW-2026-09-22 P2)
+    survey_same_recording_overlap: float = 0.9
 
     # 로그인 시도 제한 (IMPROVEMENTS 한계 1, 2026-09-18). 연속 실패가 상한에 닿으면 잠금 시간 동안 거절한다
     login_max_failures: int = 5

@@ -44,8 +44,8 @@ DEFAULT_MAX_DEVIATION_M = settings.survey_max_deviation_m
 STOP_MATCH_RADIUS_M = settings.survey_stop_match_radius_m
 DWELL_SPEED_MPS = settings.survey_dwell_speed_mps
 
-# 같은 기록으로 자기 자신을 검증하지 못하게 하는 기준 — 경로 점 시각이 이 비율 이상 겹치면 같은 기록으로 본다
-SAME_RECORDING_OVERLAP = 0.9
+# 같은 기록으로 자기 자신을 검증하지 못하게 하는 기준 (Settings, 01 설정 인덱스)
+SAME_RECORDING_OVERLAP = settings.survey_same_recording_overlap
 
 
 # ---------- 기하 ----------
@@ -373,7 +373,7 @@ def build_path(session: Session, track: SurveyTrack, *, tolerance_m: float = DEF
         mapped.append((rs, i))
         cursor = i
     segments = 0
-    for a, b in zip(mapped, mapped[1:]):
+    for a, b in zip(mapped, mapped[1:], strict=False):  # 이웃 쌍이므로 길이가 1 다르다 — strict 아님을 명시
         if a is None or b is None:
             continue
         (rs_a, ia), (rs_b, ib) = a, b
@@ -428,19 +428,28 @@ def is_demo_track(track: SurveyTrack) -> bool:
     return any("demo" in m.lower() for m in marks)
 
 
-def _same_recording(session: Session, track: SurveyTrack, path: list[RoutePathPoint]) -> bool:
-    """경로를 만든 그 기록으로 다시 검증하려는 경우. 경로 점 시각은 원본 점의 측정 시각을 그대로 복사한다.
+def independence_problem(session: Session, track: SurveyTrack, path: list[RoutePathPoint]) -> str | None:
+    """검증 트랙이 경로를 만든 기록과 **다른 기록임을 확인할 수 없으면** 사유를 돌려준다.
 
-    출처 트랙 ID 열이 없어 시각 겹침으로 판정한다. 열을 추가하려면 스키마 변경 승인이 필요하다
-    (CLAUDE.md 2절, REVIEW-2026-09-21 P1).
+    경로 점 시각은 원본 점의 측정 시각을 그대로 복사하므로 겹침률로 같은 기록을 잡아낸다.
+    시각이 없으면 '확인 불가'이며 통과시키지 않는다 — 확인하지 못한 것을 독립 기록으로 보지 않는다
+    (REVIEW-2026-09-22 P1). 출처 트랙 ID 열을 두는 것이 정확하고 그것은 스키마 승인 사항이다.
     """
     path_times = {p.recorded_at for p in path if p.recorded_at is not None}
     if not path_times:
-        return False
-    track_times = set(
-        session.scalars(select(SurveyTrackPoint.measured_at).where(SurveyTrackPoint.survey_track_id == track.survey_track_id))
-    )
-    return len(path_times & track_times) / len(path_times) >= SAME_RECORDING_OVERLAP
+        return "경로 점에 측정 시각이 없어 같은 기록인지 확인할 수 없다"
+    track_times = {
+        t
+        for t in session.scalars(
+            select(SurveyTrackPoint.measured_at).where(SurveyTrackPoint.survey_track_id == track.survey_track_id)
+        )
+        if t is not None
+    }
+    if not track_times:
+        return "검증 트랙에 측정 시각이 없어 같은 기록인지 확인할 수 없다"
+    if len(path_times & track_times) / len(path_times) >= SAME_RECORDING_OVERLAP:
+        return "경로를 만든 그 기록으로는 검증하지 않는다 — 다른 탑승의 트랙이 필요하다"
+    return None
 
 
 def verify_path(
@@ -453,17 +462,20 @@ def verify_path(
 ) -> VerifyReport:
     """두 번째 트랙으로 구간을 검증한다. 구간 안의 점이 전부 폴리라인에서 max_deviation_m 안이면 verified.
 
-    **가짜 자료와 자기 자신으로는 verified를 만들지 않는다** (CLAUDE.md 5절, 2026-09-22).
-    데모 트랙은 거절하고(시험은 allow_demo로 명시), 경로를 만든 그 기록으로 검증하는 것도 거절한다.
+    **가짜 자료로도, 출처를 확인할 수 없는 자료로도 verified를 만들지 않는다** (CLAUDE.md 5절).
+    데모 트랙과 '같은 기록인지 확인 불가'를 모두 거절한다. `allow_demo`는 시험 함수 전용 인자이며
+    CLI에는 노출하지 않는다 — 우회 옵션이 실제 DB에 검증 완료를 저장하던 문제 (REVIEW-2026-09-22 P1).
     """
     rv = track.route_version_id
     path = list(session.scalars(select(RoutePathPoint).where(RoutePathPoint.route_version_id == rv).order_by(RoutePathPoint.path_seq)))
     if not path:
         raise SystemExit("먼저 build-path로 경로를 만든다")
     if is_demo_track(track) and not allow_demo:
-        raise SystemExit("데모 트랙으로는 검증하지 않는다 — 실제 탑승 기록을 쓴다 (시험은 --allow-demo)")
-    if _same_recording(session, track, path):
-        raise SystemExit("경로를 만든 그 기록으로는 검증하지 않는다 — 다른 탑승의 트랙이 필요하다")
+        # allow_demo는 시험 함수 전용이다. CLI에는 우회 옵션을 두지 않는다 (REVIEW-2026-09-22 P1)
+        raise SystemExit("데모 트랙으로는 검증하지 않는다 — 실제 탑승 기록을 쓴다")
+    problem = independence_problem(session, track, path)
+    if problem:
+        raise SystemExit(problem)
     path_coords = [(p.latitude, p.longitude) for p in path]
     raw = list(session.scalars(select(SurveyTrackPoint).where(SurveyTrackPoint.survey_track_id == track.survey_track_id).order_by(SurveyTrackPoint.point_seq)))
     kept = remove_outliers(raw, max_speed_mps)
@@ -534,7 +546,6 @@ def main() -> None:
     ver = sub.add_parser("verify", help="두 번째 트랙으로 구간 검증 (데모·자기 기록 거절)")
     ver.add_argument("--track", required=True)
     ver.add_argument("--max-deviation", type=float, default=DEFAULT_MAX_DEVIATION_M)
-    ver.add_argument("--allow-demo", action="store_true", help="데모 트랙으로도 검증 (시험 전용)")
     sub.add_parser("list", help="트랙과 경로 상태")
     args = parser.parse_args()
 
@@ -572,7 +583,7 @@ def main() -> None:
             track = session.get(SurveyTrack, uuid.UUID(args.track))
             if track is None:
                 raise SystemExit("트랙이 없다")
-            r = verify_path(session, track, max_deviation_m=args.max_deviation, allow_demo=args.allow_demo)
+            r = verify_path(session, track, max_deviation_m=args.max_deviation)
             session.commit()
             print(f"verified {r.verified}, needs_interpretation {r.needs_interpretation}, 대조 불가 {r.skipped}")
             for name, d in r.max_deviation_by_segment.items():

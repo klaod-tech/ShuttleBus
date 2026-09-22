@@ -190,3 +190,7 @@ python -m app.survey gpx-demo --pattern cheonan_asan/general --out demo.gpx   # 
 ### v7.8 공식 안내 정정
 
 GPS 업데이트 간격과 파일 기록 필터는 별개다. 3초를 최소값으로 기술한 이전 설명은 철회한다. 설치 버전에서 지원하는 설정을 확인하고 시험 파일의 실제 시각 간격을 측정한다. Annotate는 다음 위치 측정값을 사용하며 정차 시각을 보장하지 않는다. 근거: [BasicAirData 공식 사용 안내](https://basicairdata.eu/projects/android/android-gps-logger/getting-started-guide-for-gps-logger/).
+
+### 연구 참고 — GPS 공백·비선형 추정·신호 교차로 (2026-09-22)
+
+논문별 근거·입력 조건·핵심 질문 3가지의 답·장애 대응 실험 후보는 [논문 기록](논문.md)에 모았다. 이 문서에는 내용을 중복하지 않는다. 현행 설계 계약과 P5·P6 착수 조건은 변경하지 않았다.

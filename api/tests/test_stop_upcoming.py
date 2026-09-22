@@ -1,6 +1,6 @@
 """11 11장 정거장 단독 조회 (FR-BC-23~28) · 03 5장 실측 시각 (FR-ST-14)."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.seed import route_id, stop_id
 from app.timeutil import SEOUL

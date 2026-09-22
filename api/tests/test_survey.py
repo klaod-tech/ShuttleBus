@@ -201,3 +201,38 @@ def test_route_path_verification_needs_full_coverage(client, db, set_now):
     db.delete(full[0])  # 좌표 없는 정거장 때문에 구간 하나가 없는 상황
     db.flush()
     assert pattern_verification() == "partial"
+
+
+NO_TIME_GPX = b"""<?xml version="1.0"?>
+<gpx version="1.1" creator="RealLogger 2.0" xmlns="http://www.topografix.com/GPX/1/1">
+ <trk><trkseg>
+  <trkpt lat="36.7998" lon="127.0745"></trkpt>
+  <trkpt lat="36.7950" lon="127.0800"></trkpt>
+  <trkpt lat="36.7944" lon="127.1045"></trkpt>
+ </trkseg></trk>
+</gpx>"""
+
+
+def test_verify_refuses_when_provenance_cannot_be_checked(db):
+    """측정 시각이 없어 같은 기록인지 확인할 수 없으면 통과시키지 않는다 (REVIEW-2026-09-22 P1)."""
+    seed_coords(db)
+    first, _ = import_gpx(db, NO_TIME_GPX, RV, file_ref="ride-a.gpx", device_label=None, note=None)
+    build_path(db, first)
+
+    second, _ = import_gpx(db, NO_TIME_GPX.replace(b"36.7950", b"36.7951"), RV, file_ref="ride-b.gpx", device_label=None, note=None)
+    with pytest.raises(SystemExit, match="확인할 수 없다"):
+        verify_path(db, second, max_deviation_m=30.0)
+
+    assert all(
+        s.verification_status != "verified"
+        for s in db.scalars(select(RouteStopSegment).where(RouteStopSegment.route_version_id == RV))
+    )
+
+
+def test_cli_has_no_demo_bypass():
+    """CLI에 데모 허용 옵션이 없어야 한다 — 우회 옵션이 실제 DB에 검증 완료를 저장했다 (REVIEW-2026-09-22 P1)."""
+    import io as _io
+
+    from app import survey
+
+    assert "--allow-demo" not in _io.open(survey.__file__, encoding="utf-8").read()
