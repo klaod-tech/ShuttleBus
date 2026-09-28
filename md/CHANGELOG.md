@@ -4,6 +4,12 @@
 
 **최근 작업 3회분만 이 파일에 둔다** (날짜 간격이 아니라 작업 횟수. 2026-09-22 확정). 그보다 오래된 기록은 핵심 한 줄만 남기고 [보관 기록](CHANGELOG-ARCHIVE.md)으로 옮긴다.
 
+## 2026-09-23
+
+GPS Logger 사용 후기를 현재 코드와 대조해 [IMPROVEMENTS](IMPROVEMENTS.md)에 실제 셔틀 적재 전 개선 순서·완료 조건을 기록했다. GPX 1.0 직접 speed·1초 간격·정확도 필드 부재를 사용자 관찰로 구분하고, 후기의 이름 검증 주장과 실제 거리 기반 매칭의 차이, 연속 정차·반복 방문·트랙 공백 처리 한계를 명시했다. [노선 자료 계획](PLAN-route-data.md)의 구현 상태·데모 검증 차단 설명도 최신화했다. 09-18 본문은 보관 기록으로 옮겼다.
+
+검증 상태: 문서 및 코드 정적 대조·문서 차이 확인. 원본 GPX 미제공으로 수치 재검증 안 함. pytest·실지도 시험 안 함. DB 적재·제품 코드·설계 계약·P6 단계 변경 없음.
+
 ## 2026-09-22
 
 화면 인계 재검토: `dcbf375`·`8e26158`의 코드·md_frontend 변경을 대조하고 [기존 계획서 8절](../md_frontend/PLAN-screen-fixes.md#8-인계-변경-재검토와-다음-계획-2026-09-22)에 문구 정합성·실행 안내 보완과 미완료 검증 순서를 기록했다. 타입 검사·시험 6개 재통과. 현재 화면/API 연결은 거부되어 실지도·실데이터는 재확인하지 못했다. 제품 코드·DB 변경 없음.
@@ -83,50 +89,13 @@ GitGuardian이 `Generic Password` 노출을 알렸다 (푸시 2026-09-16). 이�
 
 검증: 서버 시험 213개 통과 (비밀번호 상수 제거 후 재실행).
 
-## 2026-09-21 (작업 1회 전)
+## 2026-09-21 (작업 2회 전)
 
 - 사전 검토 결과·실제 로컬 DB 건수·카카오맵 브라우저 확인·남은 결함은 [검토 문서](REVIEW-2026-09-21.md)에 기록했다.
 - `api/app/config.py`: 실행 폴더에 따라 루트 `.env`의 CORS 설정이 누락되던 문제 수정. 루트 → API 환경 파일 → 프로세스 환경변수 순서로 우선한다.
 - 검증 상태: 서버 시험 **207개 통과**(설정 우선순위 시험 2개 포함), 화면 타입 검사 통과. Docker·프로덕션 빌드·실제 위치 정확도는 검증하지 않았다.
 
-## 2026-09-18 (작업 2회 전)
-
-### 서버 — 새 기능·계약 변경
-
-| 무엇 | 어떻게 | 영향 |
-|---|---|---|
-| **정거장 단독 조회 API** | `GET /api/v1/stops/{stop_id}/upcoming?route_id&service_date`. 방향은 합쳐서 가까운 2개 + 행마다 `next_stop_name`·`terminal_stop_name`. 대표 시각은 같은 출처 안에서 **도착 → 출발** (후보 검색의 출발 우선과 반대). `upcoming(≤2)`·`attention`·`reference_timetable`·`empty_reason` 네 갈래 | `11` 11장 신설, FR-BC-23~28. `app/candidates/upcoming.py`, `app/api/stop_upcoming.py`. 화면의 정거장 카드가 이것만 쓴다 |
-| **visits[] 실측 시각** | `observed_arrival_at`·`observed_departure_at`·`observed_passed_at` 추가. 이 방문·이 차량의 유효 관측만, 예측 아님 | `03` 5장, FR-ST-14. **기존 상태 스냅샷과 내용이 달라져 배포 후 첫 조회에서 회차마다 `state_version`이 한 번 오른다** |
-| **로그인 시도 제한** | 연속 5회 실패 시 15분 잠금 `LOGIN_LOCKED`(429, retryable=true). 잠긴 동안은 맞는 비밀번호도 거절. 없는 아이디는 잠그지 않고 401만 | `01` 5장·오류 코드·설정 인덱스(`login_max_failures`·`login_lockout_seconds`), `14` 4장. 마이그레이션 **0007** (`staff_accounts.failed_login_count`·`locked_until`) |
-| **토큰 즉시 차단** | `staff_accounts.token_not_before`(0007). 비밀번호 재설정(`accounts create`)과 새 CLI `accounts revoke-tokens`가 갱신하고, 그 이전에 발급된 토큰은 만료 전이라도 401 | IMPROVEMENTS 한계 1·2 해결. 화면은 이 401에도 대기 큐를 유지한다 |
-| **경로 자료 파이프라인** (`PLAN-route-data.md`) | ① `samples/stops-provisional.json` 임시 좌표 7개(`needs_interpretation`, verified 덮지 않음) · ② `python -m app.survey` — GPX 적재(해시 멱등)·이상치·Douglas-Peucker 단순화·정거장 구간 분할(첫 트랙은 `unverified`)·두 번째 트랙 `verify`·시험용 `gpx-demo` · ③ `GET /routes/{id}/path` + `web/` 폴리라인 (verified 실선, 그 외 점선 "미검증 경로", 행 없으면 선 없음) | `10` 5장 표시 규칙, IMPROVEMENTS 등록 절차에 명령. 가짜 자료로 verified를 만들지 않는다는 원칙은 2026-09-22에 코드로 막았다(아래 항목). P6 수신은 Traccar Client(OsmAnd 형식)로 다음 작업 |
-| **작업 지침 `CLAUDE.md`** | 문서 우선·멈춰서 허락받는 것·변경 기록 규칙·검증·자료 원칙·코드 관례. 채팅 설명은 문서로 옮긴다 | 저장소 루트 |
-| 중복·불일치 정리 (2차 검토) | `_local` 5중 정의 → `timeutil.to_seoul` · `admin.stop_out` → `admin_stop_out` (build.stop_out과 이름 충돌) · `arrived_freshness_seconds`·`refresh_after_seconds` 모듈 상수 → `Settings` (14가 ConfigMap이라 함) · `01` 설정 인덱스에 코드에만 있던 5개 등재 · `CACHE_REBUILDING` 미구현 표시 · PLAN의 `/device-positions` → 07의 `/device/positions` · `app.survey --version` | API 경로 불일치 0 (P6 `/device/positions`만 문서 선행). **오류 코드는 0이 아니었다** — `HTTP_ERROR`가 미등재였고 2026-09-22에 `01`에 넣었다 |
-| 회차 보충 루프 | API 프로세스가 하루 한 번 오늘부터 14일치 회차를 보충 (`realtime/server.py`). K8s CronJob 전까지의 대체 | IMPROVEMENTS 한계 4 완화 — 학생 첫 조회가 회차를 생성하는 쓰기가 되지 않는다 |
-| CORS | `CORS_ORIGINS`(쉼표 구분)로 REST·Socket.IO 함께 허용. `SOCKET_CORS_ORIGINS`로 따로 지정 가능. `*` 금지 | must_do S2, `.env.example` |
-| 개발용 임시 계정 | 관리자 `admin`, 입력자 `user`. 개발 DB에만 있고 **비밀번호는 문서에 적지 않는다** (2026-09-22, 저장소 비밀값 경보 이후). 각자 `python -m app.accounts create`로 만든다 | must_do S3 |
-| 정거장 좌표 등록 | `GET/POST /admin/stops`, CLI `app.stops set`. 재시드가 등록 좌표를 지우지 않는다 | 현재 0/22 등록 |
-| 멱등 기록 정리 | 보존 7일. `app.jobs purge-records`와 서버 내부 1시간 주기 | `01` 설정 인덱스 |
-| 환경 파일 정리 | `.gitignore`에 `.env.local` 계열 추가. `.env.example`은 값 없이 주석만 — 자리표시 비밀값 제거 | FR-IN-08 |
-| 계정 관리 | `staff_accounts.updated_at`(마이그레이션 0006)과 `app.accounts bootstrap` — 최초 관리자 1명, 멱등, 기존 비밀번호를 되돌리지 않는다 | `06` 7장 |
-| 시드 결함 수정 | 원문 재적재가 `stops`를 전체 덮어써 등록한 좌표·확인 상태를 null로 되돌리던 문제. 이제 이름만 갱신한다 | `04` 11장 |
-
-**받아들이지 않은 지시와 이유:** 새 `users` 테이블(이미 `staff_accounts`가 있고 FK 5곳이 참조 — 이름만 바뀌고 얻는 기능 없음), bcrypt·argon2 교체(현재 scrypt는 표준 메모리 강화 KDF이며 단순 해시가 아니다), 부트스트랩 비밀번호의 상시 파일 보관(평문 잔존 — 기본은 CLI 프롬프트, 부트스트랩은 무인 기동 전용·일회용).
-
-### 화면 — web/ 골격 착수
-
-Next.js 15 · TypeScript, `web/`. 첫 화면만: 노선·날짜 선택, 카카오맵(**정거장 점만 — 경로선·직선 연결 없음**), 정거장 목록(좌표 없으면 '좌표 확인 필요'), 정거장 카드(위 조회 API). 시각 표시는 `md_frontend/02` 규칙 — 1시간 미만 'n분 뒤', 이상 HH:mm, 1분 미만 '1분 이내', 분 내림은 임시. Compose에 `web` 서비스(빌드 인자로 `NEXT_PUBLIC_*`). 남은 화면은 `md_frontend/must_do.md`.
-
-화면 방향 합의: Transit 앱·PC 조합, Citymapper 제외. 기본 지도, 모바일 하단 카드·PC 옆 패널, 왼쪽 위 햄버거, 검색·시간표, 메뉴 맨 아래 프로필. 피그마는 필수 아님. 최초 노선 천안아산역.
-
-### 문서 정합
-
-00 헤더 v7.10 · ROADMAP P2 "직선 연결" 문구를 must_do F8(직선도 없음)에 맞춤 · IMPROVEMENTS 한계 1·2·4·7 해결 표시 · `md_frontend/04-review` 5행 해결 · must_do S1·S2·S4·F1·F8 갱신 · `.env.example`에 `SOCKET_CORS_ORIGINS`·web 항목 · 01 §6 상태값 인덱스에 `end_reason`·`decision`·`action`·`reason` 등재.
-
-### 검증 상태
-
-작성 세션은 DB·venv에 접근하지 못해 문서 기계 검사만 했고, 2026-09-20에 서버 시험(당시 205개)을 확인했다.
-최신 결과는 맨 위 2026-09-21 항목에 있다 — 중복을 남기지 않는다.
+보관: 2026-09-18의 수집·인증·화면·문서 변경 본문은 [보관 기록](CHANGELOG-ARCHIVE.md)으로 이동했다.
 
 ---
 

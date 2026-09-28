@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.reference import RoutePathPoint, RouteStop, RouteStopSegment, Stop, SurveyAnnotation, SurveyPathBuild, SurveyTrack, SurveyTrackPoint
 from app.seed import route_id, stop_id, version_id
@@ -267,3 +267,38 @@ def test_cli_has_no_demo_bypass():
     from app import survey
 
     assert "--allow-demo" not in _io.open(survey.__file__, encoding="utf-8").read()
+
+
+# BasicAirData GPS Logger 3.3.0 실제 출력 형식 (2026-09-23 시험 파일 후기):
+# GPX 1.0, speed가 trkpt 직계 자식, accuracy·hdop 없음, 주석(wpt)이 녹화 시작보다 이른 시각
+GPX10_LOGGER = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.0" creator="BasicAirData GPS Logger 3.3.0" xmlns="http://www.topografix.com/GPX/1/0">
+ <wpt lat="36.7998" lon="127.0745"><name>\xec\x95\x84\xec\x82\xb0\xec\xba\xa0\xed\x8d\xbc\xec\x8a\xa4</name><time>2026-09-23T08:58:16Z</time></wpt>
+ <trk><name>First</name><trkseg>
+  <trkpt lat="36.799800" lon="127.074500"><ele>30.0</ele><time>2026-09-23T09:00:00Z</time><speed>0.0</speed><sat>11</sat></trkpt>
+  <trkpt lat="36.799800" lon="127.074500"><ele>30.1</ele><time>2026-09-23T09:00:01Z</time><speed>0.0</speed><sat>11</sat></trkpt>
+  <trkpt lat="36.795000" lon="127.080000"><ele>31.0</ele><time>2026-09-23T09:02:00Z</time><speed>11.2</speed><sat>10</sat></trkpt>
+  <trkpt lat="36.789600" lon="127.083900"><ele>32.0</ele><time>2026-09-23T09:04:00Z</time><speed>0.0</speed><sat>10</sat></trkpt>
+ </trkseg></trk>
+</gpx>"""
+
+
+def test_gpx10_logger_format_is_read(db):
+    """GPX 1.0 · speed 직계 자식 · accuracy 없음 · 녹화보다 이른 주석 시각을 그대로 읽는다 (2026-09-23 확인)."""
+    parsed = parse_gpx(GPX10_LOGGER)
+    assert parsed.version == "1.0" and "GPS Logger" in (parsed.creator or "")
+    assert [p.speed for p in parsed.points] == [0.0, 0.0, 11.2, 0.0]  # 1.1의 extensions가 아니어도 읽힌다
+    assert all(p.accuracy is None and p.hdop is None for p in parsed.points)  # 이 앱은 정확도를 내보내지 않는다
+    assert [p.sat for p in parsed.points] == [11, 11, 10, 10]
+    assert parsed.waypoints[0].time < parsed.points[0].time  # Record 전에 Annotate가 가능하다
+
+    track, created = import_gpx(db, GPX10_LOGGER, RV, file_ref="logger.gpx", device_label="폰", note=None)
+    assert created and track.point_count == 4 and track.gpx_version == "1.0"
+    assert db.scalar(select(func.count()).select_from(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id)) == 1
+
+    seed_coords(db)
+    report = build_path(db, track)
+    assert report.path_points >= 2
+    # 주석은 이름이 아니라 좌표로 정거장에 연결된다 — 이름 오타가 매칭을 막지 않는다
+    annotation = db.scalar(select(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id))
+    assert annotation.resolved_route_stop_id is not None and annotation.verification_status == "unverified"
