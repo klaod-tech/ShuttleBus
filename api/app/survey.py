@@ -303,6 +303,11 @@ class BuildReport:
     unmapped_stops: list[str]
     annotations_resolved: int
     annotations_total: int
+    # 수신 공백 처리 결과 (2026-09-28). 공백에서 끊고 가장 긴 연속 구간만 경로로 쓴다
+    used_points: int = 0
+    dropped_gaps: int = 0
+    dropped_points: int = 0
+    longest_gap_seconds: float = 0.0
 
 
 def remove_outliers(points: list[SurveyTrackPoint], max_speed_mps: float) -> list[SurveyTrackPoint]:
@@ -337,6 +342,23 @@ def find_gaps(points: list[SurveyTrackPoint], max_gap_seconds: float) -> list[tu
         if seconds > max_gap_seconds:
             gaps.append((a.point_seq, seconds, haversine_m(a.latitude, a.longitude, b.latitude, b.longitude)))
     return gaps
+
+
+def split_on_gaps(points: list[SurveyTrackPoint], max_gap_seconds: float) -> list[list[SurveyTrackPoint]]:
+    """수신 공백에서 트랙을 끊는다. 공백을 직선으로 잇지 않기 위해서다 (10 5장).
+
+    공백 양쪽은 서로 이어진 주행이 아니므로 한 폴리라인으로 만들지 않는다. 현재 저장 구조는
+    경로 버전당 폴리라인 하나라서 가장 긴 조각만 쓴다 — 조각을 모두 보존하려면 스키마·응답 계약을
+    바꿔야 하고 그것은 승인 사항이다 (CLAUDE.md 2절).
+    """
+    parts: list[list[SurveyTrackPoint]] = [[]]
+    for p in points:
+        if parts[-1]:
+            q = parts[-1][-1]
+            if p.measured_at and q.measured_at and (p.measured_at - q.measured_at).total_seconds() > max_gap_seconds:
+                parts.append([])
+        parts[-1].append(p)
+    return [part for part in parts if part]
 
 
 def dwell_runs(points: list[SurveyTrackPoint], dwell_speed_mps: float, min_seconds: float) -> list[list[SurveyTrackPoint]]:
@@ -400,13 +422,13 @@ def build_path(
     )
     if len(raw) < 2:
         raise SystemExit("경로 점이 2개 미만이라 폴리라인을 만들 수 없다 (주석 전용 파일은 경로 근거로 쓰지 않는다)")
-    kept = remove_outliers(raw, max_speed_mps)
-    gaps = find_gaps(kept, max_gap_seconds)
-    if gaps:
-        worst = max(gaps, key=lambda g: g[1])
+    kept_all = remove_outliers(raw, max_speed_mps)
+    gaps = find_gaps(kept_all, max_gap_seconds)
+    parts = split_on_gaps(kept_all, max_gap_seconds)
+    kept = max(parts, key=len)  # 공백으로 끊고 가장 긴 연속 주행만 쓴다
+    if len(kept) < 2:
         raise SystemExit(
-            f"수신 공백 {len(gaps)}곳 (가장 긴 곳: 점 {worst[0]} 뒤 {worst[1]:.0f}초·{worst[2]:.0f}m). "
-            "공백을 직선으로 잇지 않는다 — 끊긴 구간을 빼고 나눠 녹화하거나 다시 녹화한다"
+            f"수신 공백 {len(gaps)}곳으로 잘린 뒤 이어진 구간이 2점 미만이다. 끊김 없이 다시 녹화한다"
         )
     coords = [(p.latitude, p.longitude) for p in kept]
     keep_idx = douglas_peucker(coords, tolerance_m)
@@ -501,7 +523,19 @@ def build_path(
         )
     )
     session.flush()
-    return BuildReport(len(raw), len(kept), len(simplified), segments, unmapped, resolved, len(annotations))
+    return BuildReport(
+        raw_points=len(raw),
+        kept_after_outliers=len(kept_all),
+        used_points=len(kept),
+        dropped_gaps=len(gaps),
+        dropped_points=len(kept_all) - len(kept),
+        longest_gap_seconds=max((g[1] for g in gaps), default=0.0),
+        path_points=len(simplified),
+        segments=segments,
+        unmapped_stops=unmapped,
+        annotations_resolved=resolved,
+        annotations_total=len(annotations),
+    )
 
 
 # ---------- 검증 ----------
@@ -684,7 +718,10 @@ def main() -> None:
                 raise SystemExit("트랙이 없다")
             r = build_path(session, track, tolerance_m=args.tolerance, max_speed_mps=args.max_speed)
             session.commit()
-            print(f"원본 {r.raw_points} → 이상치 제거 {r.kept_after_outliers} → 단순화 {r.path_points}점, 구간 {r.segments}개 (unverified), 주석 {r.annotations_resolved}/{r.annotations_total} 매핑")
+            print(f"원본 {r.raw_points} → 이상치 제거 {r.kept_after_outliers} → 사용 {r.used_points} → 단순화 {r.path_points}점, 구간 {r.segments}개 (unverified), 주석 {r.annotations_resolved}/{r.annotations_total} 매핑")
+            if r.dropped_gaps:
+                print(f"  수신 공백 {r.dropped_gaps}곳 (가장 긴 곳 {r.longest_gap_seconds:.0f}초) — 점 {r.dropped_points}개를 버렸다. 공백은 잇지 않는다")
+                print("  전체 경로가 필요하면 끊김 없이 다시 녹화한다")
             for name in r.unmapped_stops:
                 print(f"  구간 없음: {name}")
             return

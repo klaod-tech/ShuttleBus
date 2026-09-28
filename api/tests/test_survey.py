@@ -207,8 +207,8 @@ NO_TIME_GPX = b"""<?xml version="1.0"?>
 <gpx version="1.1" creator="RealLogger 2.0" xmlns="http://www.topografix.com/GPX/1/1">
  <trk><trkseg>
   <trkpt lat="36.7998" lon="127.0745"></trkpt>
-  <trkpt lat="36.7950" lon="127.0800"></trkpt>
-  <trkpt lat="36.7944" lon="127.1045"></trkpt>
+  <trkpt lat="36.7997" lon="127.0747"></trkpt>
+  <trkpt lat="36.7996" lon="127.0749"></trkpt>
  </trkseg></trk>
 </gpx>"""
 
@@ -219,7 +219,7 @@ def test_verify_refuses_when_provenance_cannot_be_checked(db):
     first, _ = import_gpx(db, NO_TIME_GPX, RV, file_ref="ride-a.gpx", device_label=None, note=None)
     build_path(db, first)
 
-    second, _ = import_gpx(db, NO_TIME_GPX.replace(b"36.7950", b"36.7951"), RV, file_ref="ride-b.gpx", device_label=None, note=None)
+    second, _ = import_gpx(db, NO_TIME_GPX.replace(b"36.7997", b"36.79975"), RV, file_ref="ride-b.gpx", device_label=None, note=None)
     with pytest.raises(SystemExit, match="확인할 수 없다"):
         verify_path(db, second, max_deviation_m=30.0)
 
@@ -323,13 +323,19 @@ def test_gpx10_logger_format_is_read(db):
     assert annotation.resolved_route_stop_id is not None and annotation.verification_status == "unverified"
 
 
-def test_build_path_refuses_reception_gap(db):
-    """수신이 끊긴 구간을 직선으로 이어 그리지 않는다 (10 5장, 2026-09-28)."""
+def test_build_path_splits_on_reception_gap(db):
+    """수신이 끊기면 공백에서 끊고 관측한 구간만 쓴다. 공백을 직선으로 잇지 않는다 (10 5장, 2026-09-28)."""
     seed_coords(db)
     track, _ = import_gpx(db, _gpx10(_ride(gap_after=30)), RV, file_ref="gap.gpx", device_label=None, note=None)
-    with pytest.raises(SystemExit, match="수신 공백"):
-        build_path(db, track)
-    assert db.scalars(select(RoutePathPoint).where(RoutePathPoint.route_version_id == RV)).all() == []
+    report = build_path(db, track)
+    assert report.dropped_gaps == 1 and report.longest_gap_seconds >= 300
+    assert report.used_points < report.kept_after_outliers  # 공백 반대쪽은 쓰지 않았다
+    assert report.dropped_points == report.kept_after_outliers - report.used_points
+
+    # 남은 경로가 공백을 건너뛰지 않는다: 이웃한 경로 점의 측정 시각 간격이 공백 기준을 넘지 않는다
+    pts = db.scalars(select(RoutePathPoint).where(RoutePathPoint.route_version_id == RV).order_by(RoutePathPoint.path_seq)).all()
+    covered = (pts[-1].recorded_at - pts[0].recorded_at).total_seconds()
+    assert pts and covered < report.longest_gap_seconds  # 공백 한쪽만 담겼다
 
 
 def test_annotation_needs_two_things_to_resolve(db):
