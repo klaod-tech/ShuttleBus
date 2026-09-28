@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     # 검증 트랙이 경로를 만든 그 기록인지 판정하는 시각 겹침 비율. 겹침률만으로 독립 기록을 보장하지는
     # 못한다 — 출처 트랙 ID 열을 두는 편이 정확하고, 그것은 스키마 승인 사항이다 (REVIEW-2026-09-22 P2)
     survey_same_recording_overlap: float = 0.9
+    # 이보다 긴 수신 공백이 있으면 경로를 만들지 않는다 — 안 지나간 길을 이어 그리지 않기 위해 (10 5장)
+    survey_max_gap_seconds: float = 30.0
+    # 정차로 인정할 최소 지속 시간. 신호대기 한두 점을 정거장 정차로 보지 않기 위한 하한
+    survey_min_dwell_seconds: float = 10.0
+    # 서로 다른 정차로 보는 거리. 이보다 멀리 떨어진 정차 후보가 둘이면 어느 방문인지 확정하지 않는다
+    survey_distinct_dwell_m: float = 30.0
 
     # 로그인 시도 제한 (IMPROVEMENTS 한계 1, 2026-09-18). 연속 실패가 상한에 닿으면 잠금 시간 동안 거절한다
     login_max_failures: int = 5

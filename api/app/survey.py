@@ -48,6 +48,9 @@ DWELL_SPEED_MPS = settings.survey_dwell_speed_mps
 
 # 같은 기록으로 자기 자신을 검증하지 못하게 하는 기준 (Settings, 01 설정 인덱스)
 SAME_RECORDING_OVERLAP = settings.survey_same_recording_overlap
+MAX_GAP_SECONDS = settings.survey_max_gap_seconds
+MIN_DWELL_SECONDS = settings.survey_min_dwell_seconds
+DISTINCT_DWELL_M = settings.survey_distinct_dwell_m
 
 
 # ---------- 기하 ----------
@@ -321,6 +324,53 @@ def remove_outliers(points: list[SurveyTrackPoint], max_speed_mps: float) -> lis
     return kept
 
 
+def find_gaps(points: list[SurveyTrackPoint], max_gap_seconds: float) -> list[tuple[int, float, float]]:
+    """수신이 끊긴 자리. (앞 점의 point_seq, 공백 초, 그 사이 직선거리 m).
+
+    GPX의 trkseg 경계도 보통 여기서 드러난다. 공백을 직선으로 이으면 지나가지 않은 길을 그리게 된다.
+    """
+    gaps = []
+    for a, b in zip(points, points[1:], strict=False):
+        if a.measured_at is None or b.measured_at is None:
+            continue
+        seconds = (b.measured_at - a.measured_at).total_seconds()
+        if seconds > max_gap_seconds:
+            gaps.append((a.point_seq, seconds, haversine_m(a.latitude, a.longitude, b.latitude, b.longitude)))
+    return gaps
+
+
+def dwell_runs(points: list[SurveyTrackPoint], dwell_speed_mps: float, min_seconds: float) -> list[list[SurveyTrackPoint]]:
+    """시각·순번으로 이어진 저속 구간만 정차로 본다. 흩어진 저속 점을 한 정차로 합치지 않는다.
+
+    신호대기처럼 짧은 정지는 min_seconds로 걸러낸다. 시각이 없으면 점 수로 대신 판단한다.
+    """
+    runs: list[list[SurveyTrackPoint]] = []
+    current: list[SurveyTrackPoint] = []
+    for p in points:
+        slow = p.speed_mps is not None and p.speed_mps <= dwell_speed_mps
+        if slow and (not current or p.point_seq == current[-1].point_seq + 1):
+            current.append(p)
+            continue
+        if current:
+            runs.append(current)
+        current = [p] if slow else []
+    if current:
+        runs.append(current)
+
+    def long_enough(run: list[SurveyTrackPoint]) -> bool:
+        if len(run) < 2:
+            return False
+        if run[0].measured_at and run[-1].measured_at:
+            return (run[-1].measured_at - run[0].measured_at).total_seconds() >= min_seconds
+        return len(run) >= 5  # 시각이 없으면 점 수로 대신 본다
+
+    return [r for r in runs if long_enough(r)]
+
+
+def _centroid(run: list[SurveyTrackPoint]) -> tuple[float, float]:
+    return sum(p.latitude for p in run) / len(run), sum(p.longitude for p in run) / len(run)
+
+
 def _nearest_index(coords: list[tuple[float, float]], lat: float, lng: float, start: int = 0) -> tuple[int, float]:
     best_i, best_d = -1, float("inf")
     for i in range(start, len(coords)):
@@ -330,8 +380,18 @@ def _nearest_index(coords: list[tuple[float, float]], lat: float, lng: float, st
     return best_i, best_d
 
 
-def build_path(session: Session, track: SurveyTrack, *, tolerance_m: float = DEFAULT_TOLERANCE_M, max_speed_mps: float = DEFAULT_MAX_SPEED_MPS) -> BuildReport:
-    """IMPROVEMENTS 2~7단계. 이 경로 버전의 기존 정제 결과는 지우고 다시 만든다 (원본은 survey_*에 남는다)."""
+def build_path(
+    session: Session,
+    track: SurveyTrack,
+    *,
+    tolerance_m: float = DEFAULT_TOLERANCE_M,
+    max_speed_mps: float = DEFAULT_MAX_SPEED_MPS,
+    max_gap_seconds: float = MAX_GAP_SECONDS,
+) -> BuildReport:
+    """IMPROVEMENTS 2~7단계. 이 경로 버전의 기존 정제 결과는 지우고 다시 만든다 (원본은 survey_*에 남는다).
+
+    수신 공백이 있으면 만들지 않는다 — 공백을 직선으로 이으면 지나가지 않은 길이 지도에 남는다 (10 5장).
+    """
     if track.route_version_id is None:
         raise SystemExit("트랙에 경로 버전이 없다")
     rv = track.route_version_id
@@ -341,6 +401,13 @@ def build_path(session: Session, track: SurveyTrack, *, tolerance_m: float = DEF
     if len(raw) < 2:
         raise SystemExit("경로 점이 2개 미만이라 폴리라인을 만들 수 없다 (주석 전용 파일은 경로 근거로 쓰지 않는다)")
     kept = remove_outliers(raw, max_speed_mps)
+    gaps = find_gaps(kept, max_gap_seconds)
+    if gaps:
+        worst = max(gaps, key=lambda g: g[1])
+        raise SystemExit(
+            f"수신 공백 {len(gaps)}곳 (가장 긴 곳: 점 {worst[0]} 뒤 {worst[1]:.0f}초·{worst[2]:.0f}m). "
+            "공백을 직선으로 잇지 않는다 — 끊긴 구간을 빼고 나눠 녹화하거나 다시 녹화한다"
+        )
     coords = [(p.latitude, p.longitude) for p in kept]
     keep_idx = douglas_peucker(coords, tolerance_m)
     simplified = [kept[i] for i in keep_idx]
@@ -390,24 +457,36 @@ def build_path(session: Session, track: SurveyTrack, *, tolerance_m: float = DEF
         )
         segments += 1
 
-    # 주석 → 부근 정차 구간 → 정거장. 주석 좌표를 그대로 쓰지 않는다 (04 1장)
+    # 주석 → 연속 정차 구간 → 정거장. 주석 좌표를 그대로 정거장 좌표로 쓰지 않는다 (04 1장).
+    # 흩어진 저속 점을 한 정차로 평균내지 않고, 왕복 재방문이 섞이면 확정하지 않는다 (2026-09-28)
     annotations = list(session.scalars(select(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id)))
-    dwell = [p for p in kept if p.speed_mps is not None and p.speed_mps <= DWELL_SPEED_MPS]
+    runs = dwell_runs(kept, DWELL_SPEED_MPS, MIN_DWELL_SECONDS)
     stops_with_coords = [(rs, stop) for rs, stop in route_stops if stop.latitude is not None]
+    stop_names = {stop.name for _rs, stop in route_stops}
     resolved = 0
     for ann in annotations:
-        near = [p for p in dwell if haversine_m(ann.latitude, ann.longitude, p.latitude, p.longitude) <= STOP_MATCH_RADIUS_M]
-        if not near:
+        candidates = [r for r in runs if haversine_m(ann.latitude, ann.longitude, *_centroid(r)) <= STOP_MATCH_RADIUS_M]
+        if not candidates:
             ann.resolved_route_stop_id, ann.verification_status = None, "needs_interpretation"
             continue
-        clat = sum(p.latitude for p in near) / len(near)
-        clng = sum(p.longitude for p in near) / len(near)
+        candidates.sort(key=lambda r: haversine_m(ann.latitude, ann.longitude, *_centroid(r)))
+        chosen = candidates[0]
+        # 같은 주석 반경 안에 멀리 떨어진 정차가 또 있으면 어느 방문인지 알 수 없다 (왕복 재방문)
+        if any(haversine_m(*_centroid(chosen), *_centroid(other)) > DISTINCT_DWELL_M for other in candidates[1:]):
+            ann.resolved_route_stop_id, ann.verification_status = None, "needs_interpretation"
+            continue
+        clat, clng = _centroid(chosen)
         best = min(stops_with_coords, key=lambda rs_stop: haversine_m(clat, clng, rs_stop[1].latitude, rs_stop[1].longitude), default=None)
         if best is None or haversine_m(clat, clng, best[1].latitude, best[1].longitude) > STOP_MATCH_RADIUS_M:
             ann.resolved_route_stop_id, ann.verification_status = None, "needs_interpretation"
             continue
+        # 주석 이름이 이 노선의 다른 정거장을 가리키면 조용히 붙이지 않는다. 이름이 없거나 모르는 이름이면 좌표를 따른다
+        name = (ann.label or "").strip()
+        if name in stop_names and name != best[1].name:
+            ann.resolved_route_stop_id, ann.verification_status = None, "needs_interpretation"
+            continue
         ann.resolved_route_stop_id, ann.verification_status = best[0].route_stop_id, "unverified"
-        ann.linked_point_seq = min(near, key=lambda p: haversine_m(ann.latitude, ann.longitude, p.latitude, p.longitude)).point_seq
+        ann.linked_point_seq = min(chosen, key=lambda p: haversine_m(ann.latitude, ann.longitude, p.latitude, p.longitude)).point_seq
         resolved += 1
     # 이 경로가 어느 기록에서 나왔는지 남긴다 (⓪→① 예외, 2026-09-22 승인).
     # 검증이 '다른 탑승인가'를 시각 겹침 추정이 아니라 이 ID로 판정한다

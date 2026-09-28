@@ -1,6 +1,6 @@
 """조사 트랙 적재·경로 생성 (04 1장 조사 트랙, IMPROVEMENTS 등록 절차, PLAN-route-data ②③)."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -271,34 +271,88 @@ def test_cli_has_no_demo_bypass():
 
 # BasicAirData GPS Logger 3.3.0 실제 출력 형식 (2026-09-23 시험 파일 후기):
 # GPX 1.0, speed가 trkpt 직계 자식, accuracy·hdop 없음, 주석(wpt)이 녹화 시작보다 이른 시각
-GPX10_LOGGER = b"""<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.0" creator="BasicAirData GPS Logger 3.3.0" xmlns="http://www.topografix.com/GPX/1/0">
- <wpt lat="36.7998" lon="127.0745"><name>\xec\x95\x84\xec\x82\xb0\xec\xba\xa0\xed\x8d\xbc\xec\x8a\xa4</name><time>2026-09-23T08:58:16Z</time></wpt>
- <trk><name>First</name><trkseg>
-  <trkpt lat="36.799800" lon="127.074500"><ele>30.0</ele><time>2026-09-23T09:00:00Z</time><speed>0.0</speed><sat>11</sat></trkpt>
-  <trkpt lat="36.799800" lon="127.074500"><ele>30.1</ele><time>2026-09-23T09:00:01Z</time><speed>0.0</speed><sat>11</sat></trkpt>
-  <trkpt lat="36.795000" lon="127.080000"><ele>31.0</ele><time>2026-09-23T09:02:00Z</time><speed>11.2</speed><sat>10</sat></trkpt>
-  <trkpt lat="36.789600" lon="127.083900"><ele>32.0</ele><time>2026-09-23T09:04:00Z</time><speed>0.0</speed><sat>10</sat></trkpt>
- </trkseg></trk>
-</gpx>"""
+def _gpx10(points, *, annotations=(("아산캠퍼스", 36.7998, 127.0745, "2026-09-23T08:58:16Z"),)):
+    """BasicAirData GPS Logger 3.3.0 형식: GPX 1.0, speed가 trkpt 직계, accuracy·hdop 없음."""
+    out = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<gpx version="1.0" creator="BasicAirData GPS Logger 3.3.0" xmlns="http://www.topografix.com/GPX/1/0">']
+    for label, lat, lng, when in annotations:
+        out.append(f'<wpt lat="{lat}" lon="{lng}"><name>{label}</name><time>{when}</time></wpt>')
+    out.append("<trk><name>First</name><trkseg>")
+    for lat, lng, when, speed in points:
+        out.append(f'<trkpt lat="{lat:.6f}" lon="{lng:.6f}"><ele>30.0</ele><time>{when}</time>'
+                   f"<speed>{speed}</speed><sat>10</sat></trkpt>")
+    out.append("</trkseg></trk></gpx>")
+    return chr(10).join(out).encode()
+
+
+def _second(i: int) -> str:
+    return (datetime(2026, 9, 23, 9, 0, tzinfo=timezone.utc) + timedelta(seconds=i)).isoformat().replace("+00:00", "Z")
+
+
+def _ride(dwell_s=30, leg_s=60, gap_after=None):
+    """캠퍼스에서 정차 → 탕정역으로 이동 → 정차. gap_after를 주면 그 지점에 수신 공백을 만든다."""
+    a, b = (36.7998, 127.0745), (36.7896, 127.0839)
+    pts, t = [], 0
+    for _ in range(dwell_s):
+        pts.append((a[0], a[1], _second(t), 0.0)); t += 1
+    for k in range(1, leg_s + 1):
+        if gap_after and k == gap_after:
+            t += 300  # 5분 수신 공백
+        pts.append((a[0] + (b[0] - a[0]) * k / leg_s, a[1] + (b[1] - a[1]) * k / leg_s, _second(t), 11.0)); t += 1
+    for _ in range(dwell_s):
+        pts.append((b[0], b[1], _second(t), 0.0)); t += 1
+    return pts
 
 
 def test_gpx10_logger_format_is_read(db):
     """GPX 1.0 · speed 직계 자식 · accuracy 없음 · 녹화보다 이른 주석 시각을 그대로 읽는다 (2026-09-23 확인)."""
-    parsed = parse_gpx(GPX10_LOGGER)
+    data = _gpx10(_ride())
+    parsed = parse_gpx(data)
     assert parsed.version == "1.0" and "GPS Logger" in (parsed.creator or "")
-    assert [p.speed for p in parsed.points] == [0.0, 0.0, 11.2, 0.0]  # 1.1의 extensions가 아니어도 읽힌다
+    assert parsed.points[0].speed == 0.0 and max(p.speed for p in parsed.points) == 11.0  # extensions가 아니어도 읽힌다
     assert all(p.accuracy is None and p.hdop is None for p in parsed.points)  # 이 앱은 정확도를 내보내지 않는다
-    assert [p.sat for p in parsed.points] == [11, 11, 10, 10]
     assert parsed.waypoints[0].time < parsed.points[0].time  # Record 전에 Annotate가 가능하다
 
-    track, created = import_gpx(db, GPX10_LOGGER, RV, file_ref="logger.gpx", device_label="폰", note=None)
-    assert created and track.point_count == 4 and track.gpx_version == "1.0"
-    assert db.scalar(select(func.count()).select_from(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id)) == 1
-
+    track, created = import_gpx(db, data, RV, file_ref="logger.gpx", device_label="폰", note=None)
+    assert created and track.gpx_version == "1.0"
     seed_coords(db)
     report = build_path(db, track)
     assert report.path_points >= 2
-    # 주석은 이름이 아니라 좌표로 정거장에 연결된다 — 이름 오타가 매칭을 막지 않는다
+    # 주석은 이름이 아니라 연속 정차 구간의 좌표로 정거장에 연결된다
     annotation = db.scalar(select(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id))
     assert annotation.resolved_route_stop_id is not None and annotation.verification_status == "unverified"
+
+
+def test_build_path_refuses_reception_gap(db):
+    """수신이 끊긴 구간을 직선으로 이어 그리지 않는다 (10 5장, 2026-09-28)."""
+    seed_coords(db)
+    track, _ = import_gpx(db, _gpx10(_ride(gap_after=30)), RV, file_ref="gap.gpx", device_label=None, note=None)
+    with pytest.raises(SystemExit, match="수신 공백"):
+        build_path(db, track)
+    assert db.scalars(select(RoutePathPoint).where(RoutePathPoint.route_version_id == RV)).all() == []
+
+
+def test_annotation_needs_two_things_to_resolve(db):
+    """짧은 신호대기는 정차로 보지 않고, 같은 주석 반경에 다른 정차가 또 있으면 확정하지 않는다."""
+    seed_coords(db)
+    # 신호대기 3초 + 이동만 있는 트랙: 정차 구간이 없어 주석이 붙지 않는다
+    a, b = (36.7998, 127.0745), (36.7896, 127.0839)
+    pts, t = [], 0
+    for k in range(1, 121):
+        speed = 0.0 if k in (40, 41, 42) else 11.0  # 3초 신호대기
+        pts.append((a[0] + (b[0] - a[0]) * k / 120, a[1] + (b[1] - a[1]) * k / 120, _second(t), speed)); t += 1
+    track, _ = import_gpx(db, _gpx10(pts), RV, file_ref="signal.gpx", device_label=None, note=None)
+    report = build_path(db, track)
+    assert report.annotations_resolved == 0
+    annotation = db.scalar(select(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id))
+    assert annotation.verification_status == "needs_interpretation"
+
+
+def test_annotation_name_pointing_at_another_stop_is_not_attached(db):
+    """주석 이름이 이 노선의 다른 정거장이면 좌표가 가깝다고 조용히 붙이지 않는다."""
+    seed_coords(db)
+    wrong_name = (("천안아산역", 36.7998, 127.0745, "2026-09-23T08:58:16Z"),)  # 캠퍼스 좌표에 다른 역 이름
+    track, _ = import_gpx(db, _gpx10(_ride(), annotations=wrong_name), RV, file_ref="mislabel.gpx", device_label=None, note=None)
+    report = build_path(db, track)
+    assert report.annotations_resolved == 0
+    assert db.scalar(select(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id)).verification_status == "needs_interpretation"

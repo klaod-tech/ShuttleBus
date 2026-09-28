@@ -261,6 +261,8 @@
 | `refresh_after_seconds` | 후보를 다시 조회할 때인가 | 시험값 | `11` |
 | `gps_report_interval_seconds` | 단말 전송 주기 | 시험값 | `07` |
 | `survey_tolerance_m`, `survey_max_speed_mps`, `survey_max_deviation_m`, `survey_stop_match_radius_m`, `survey_dwell_speed_mps` | GPX 적재의 단순화·이상치·검증 기준 | 시험값 (2026-09-22에 모듈 상수에서 이동). 실측 후 `07` 값으로 대체 | `PLAN-route-data` |
+| `survey_max_gap_seconds` | 이보다 긴 수신 공백이 있으면 경로를 만들지 않는다 | 시험값 30초 (2026-09-28). 공백을 직선으로 잇지 않기 위한 것 (`10` 5장) | `PLAN-route-data` |
+| `survey_min_dwell_seconds`, `survey_distinct_dwell_m` | 정차로 볼 최소 지속 시간과, 서로 다른 정차로 볼 거리 | 시험값 10초·30m (2026-09-28). 신호대기와 왕복 재방문을 정거장 정차로 단정하지 않기 위한 것 | `PLAN-route-data` |
 | `geofence_radius_m` | 정거장 반경. 정거장별로 다를 수 있음 | 시험값 | `07` |
 | `detection_delay_seconds` | 재정렬 지연 창 | 시험값 | `07` |
 | `gps_stale_after_seconds` | GPS 좌표가 만료됐는가 | 시험값 | `07` |
