@@ -453,6 +453,8 @@ function linkTo(href, path) {
   return '';
 }
 
+const taskPattern = () => new RegExp(`\\b${String(config.taskPrefix).replace(/[^A-Z0-9]/g, '')}-\\d{4,}\\b`, 'g');
+
 function inline(text, path) {
   const tokens = [];
   const token = (html) => {
@@ -471,7 +473,14 @@ function inline(text, path) {
   });
   value = esc(value)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/~~([^~]+)~~/g, '<del>$1</del>');
+    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    .replace(taskPattern(), (number) => {
+      // Card numbers written in documents open that card (document → card in one click).
+      const card = findCard(number);
+      return card
+        ? `<a class="task-ref" href="#task=${number}" title="${esc(card.title)} · ${esc(STATUS[card.status])}">${number}</a>`
+        : `<span class="task-ref" title="등록되지 않은 번호">${number}</span>`;
+    });
   return value.replace(/\u0000(\d+)\u0000/g, (_, i) => tokens[Number(i)]);
 }
 

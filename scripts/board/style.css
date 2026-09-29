@@ -1605,3 +1605,17 @@ dialog h2,
   padding: 2px 5px;
   border-radius: 4px;
 }
+
+.markdown .task-ref {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.markdown a.task-ref {
+  text-decoration: none;
+  border-bottom: 1px dashed #88a57c;
+}
+/* Table cells: never split short IDs like "S1"; long words still wrap (table scrolls if needed). */
+.markdown th,
+.markdown td {
+  overflow-wrap: break-word;
+}

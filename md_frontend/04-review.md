@@ -14,27 +14,29 @@
 
 ## 남은 문제와 처리 방향
 
-| 우선 | 항목 | 코드·문서에서 확인한 사실 | 다음 처리 |
-|---|---|---|---|
-| ~~높음~~ | ~~정류장별 다음 버스 조회~~ | **해결 (2026-09-18)** — `GET /stops/{stop_id}/upcoming`. 계약은 ../md/11 11장 | 화면에서 upcoming·attention·reference_timetable·empty_reason 네 갈래를 그린다 |
-| ~~높음~~ | ~~브라우저 연결~~ | **해결 (2026-09-18)** — `CORS_ORIGINS`로 REST·Socket.IO 함께 허용 (must_do S2) | 화면에서 `http://localhost:3000` 출처로 REST·Socket.IO 연결만 확인 |
-| ~~높음~~ | ~~실측 이력 표시 부족~~ | **해결 (2026-09-18)** — visits[]에 `observed_arrival_at`·`observed_departure_at`·`observed_passed_at` 추가 (../md/03 5장, FR-ST-14) | 지난 기록은 이 세 값으로만 그린다. 다른 방문의 관측을 대신 쓰지 않음 |
-| 중간 | 시간표 중간 지점 시각 | TripListOut은 기점 출발·종점 도착만 반환한다. 천안아산역 등 중간 공시 시각은 /state의 stops에 있다 | 우선 선택 회차 상세 조회로 제공하거나 일괄 시간표 응답 협의. 모든 회차 상세를 동시에 요청하는 방식은 피함 |
-| 중간 | 관리자 버전·회차 연결 | 관리자 세션 상세는 session·events·reviews만 반환한다. session에는 trip_id·control_version이 없다 | 목록에서 trip_id를 유지하고 /state로 control_version 조회. 직접 주소 진입 시 목록 재조회 또는 서버 상세 응답 보완 필요 |
-| 중간 | 완료 재검토 필터 | 관리자 목록은 review_required 필터만 받고 completion_review_required는 결과 필드다 | 완료 재검토 화면은 필터 없는 날짜 목록을 받은 뒤 해당 필드로 필터. review_required=true와 동일시하지 않음 |
-| 중간 | 날짜·노선 목록과 무운행일 | 날짜별 정류장 API는 available이 아니면 patterns가 비어 있다 | 이 상태를 ‘노선에 정류장 없음’으로 표시하지 말고 날짜 상태를 우선 표시 |
-| 중간 | 정보 만료 | /state에는 server_time은 있지만 정보별 유효 종료 시각이 없다. 후보에는 refresh_after_seconds가 있다 | 응답 후 경과 시간으로 표시 갱신, ETA 경과 시 확인 중 전환, 화면 복귀·재연결 시 재조회. 신선도 만료 기준의 서버 전달 방식은 연동 전 합의 |
-| ~~중간~~ | ~~방향 표시~~ | **해결 (2026-09-18)** — 정거장 조회 항목에 `next_stop_name`·`terminal_stop_name` | "다음 정거장 → 종점" 형태로 표시. 패턴 direction을 방문 방향으로 쓰지 않음 |
-| 중간 | 지도 자료 | 정거장 좌표·실제 승차 위치·GPX 자료가 미확정이다 | 좌표 없는 곳은 목록으로 제공. 지도 키·도메인 준비와 현장 좌표 확보를 별도로 추적 |
-| 공개 전 | 인증 보완 | ~~로그인 시도 제한·발급 토큰 즉시 차단~~ → **해결 (2026-09-18)** `LOGIN_LOCKED`·`token_not_before` | 남은 것은 개발용 임시 계정 재설정뿐이다 |
+| 카드 | 우선 | 항목 | 코드·문서에서 확인한 사실 | 다음 처리 |
+|---|---|---|---|---|
+| SB-0010 | 높음 | 정류장별 다음 버스 조회 | `GET /stops/{stop_id}/upcoming`. 계약은 ../md/11 11장 | 화면에서 upcoming·attention·reference_timetable·empty_reason 네 갈래를 그린다 |
+| SB-0011 | 높음 | 브라우저 연결 | `CORS_ORIGINS`로 REST·Socket.IO 함께 허용 (must_do S2) | 화면에서 `http://localhost:3000` 출처로 REST·Socket.IO 연결만 확인 |
+| SB-0012 | 높음 | 실측 이력 표시 부족 | visits[]에 `observed_arrival_at`·`observed_departure_at`·`observed_passed_at` 추가 (../md/03 5장, FR-ST-14) | 지난 기록은 이 세 값으로만 그린다. 다른 방문의 관측을 대신 쓰지 않음 |
+| SB-0027 | 중간 | 시간표 중간 지점 시각 | TripListOut은 기점 출발·종점 도착만 반환한다. 천안아산역 등 중간 공시 시각은 /state의 stops에 있다 | 우선 선택 회차 상세 조회로 제공하거나 일괄 시간표 응답 협의. 모든 회차 상세를 동시에 요청하는 방식은 피함 |
+| SB-0054 | 중간 | 관리자 버전·회차 연결 | 관리자 세션 상세는 session·events·reviews만 반환한다. session에는 trip_id·control_version이 없다 | 목록에서 trip_id를 유지하고 /state로 control_version 조회. 직접 주소 진입 시 목록 재조회 또는 서버 상세 응답 보완 필요 |
+| SB-0049 | 중간 | 완료 재검토 필터 | 관리자 목록은 review_required 필터만 받고 completion_review_required는 결과 필드다 | 완료 재검토 화면은 필터 없는 날짜 목록을 받은 뒤 해당 필드로 필터. review_required=true와 동일시하지 않음 |
+| SB-0026 | 중간 | 날짜·노선 목록과 무운행일 | 날짜별 정류장 API는 available이 아니면 patterns가 비어 있다 | 이 상태를 ‘노선에 정류장 없음’으로 표시하지 말고 날짜 상태를 우선 표시 |
+| SB-0028 | 중간 | 정보 만료 | /state에는 server_time은 있지만 정보별 유효 종료 시각이 없다. 후보에는 refresh_after_seconds가 있다 | 응답 후 경과 시간으로 표시 갱신, ETA 경과 시 확인 중 전환, 화면 복귀·재연결 시 재조회. 신선도 만료 기준의 서버 전달 방식은 연동 전 합의 |
+| SB-0013 | 중간 | 방향 표시 | 정거장 조회 항목에 `next_stop_name`·`terminal_stop_name` | "다음 정거장 → 종점" 형태로 표시. 패턴 direction을 방문 방향으로 쓰지 않음 |
+| SB-0029 · SB-0075 | 중간 | 지도 자료 | 정거장 좌표·실제 승차 위치·GPX 자료가 미확정이다 | 좌표 없는 곳은 목록으로 제공. 지도 키·도메인 준비와 현장 좌표 확보를 별도로 추적 |
+| SB-0034 · SB-0096 | 공개 전 | 인증 보완 | 로그인 시도 제한·발급 토큰 즉시 차단 → `LOGIN_LOCKED`·`token_not_before` | 남은 것은 개발용 임시 계정 재설정뿐이다 |
 
-**이 점검표의 후속 (2026-09-22):** 표의 높음·중간 항목은 대부분 닫혔다 — 정류장 조회 API 신설(S1), CORS(S2), 실측 이력 `observed_*` 추가, 화면의 미검증 마커·요청 취소 보완. 현재 상태와 남은 것은 [must_do 0절](must_do.md)과 [화면 3건 계획·결과](PLAN-screen-fixes.md)가 최신이다. 이 문서는 2026-09-21 시점 기록으로 둔다.
+**이 점검표의 후속 (2026-09-22):** 표의 높음·중간 항목은 대부분 닫혔다 — 정류장 조회 API 신설(S1), CORS(S2), 실측 이력 `observed_*` 추가, 화면의 미검증 마커·요청 취소 보완. 현재 상태와 남은 것은 [must_do 0절](must_do.md)과 [화면 3건 계획·결과](PLAN-screen-fixes.md)가 최신이다. 이 문서는 2026-09-21 시점 기록으로 둔다. 항목별 상태는 표의 `카드` 열이 가리킨다 (2026-09-29).
 
 ## 외부 API와 현재 서버
 
 사용자는 외부 버스 API를 아직 문의하지 않았고 확보하지 않았다고 확인했다. 현재 서버는 저장된 시간표와 자체 관측을 제공한다. 외부 API가 확보되었다고 가정하거나 외부 실시간 위치를 표시하지 않는다. 지도 SDK도 버스 운행 데이터를 제공하는 API와 다르다.
 
 ## 화면 호환성 검증 계획
+
+카드: SB-0085.
 
 앱 미구현 상태이므로 아래는 통과 결과가 아니라 구현 후 점검 목록이다.
 

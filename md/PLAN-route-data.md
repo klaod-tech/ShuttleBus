@@ -144,16 +144,16 @@ cd api; $env:PYTHONUTF8='1'
 
 ## 순서와 상태
 
-| # | 작업 | 상태 |
+| # | 작업 | 카드 |
 |---|---|---|
-| 1 | 이 계획 | 완료 |
-| 2 | ① `samples/stops-provisional.json` + `app.stops import` 덮어쓰기 보호 | 완료 |
-| 3 | ② `app/survey.py` — gpx-demo · import · build-path · verify · list | 완료. `build-path`가 출처를 `survey_path_builds`에 남기고, `verify`는 출처 트랙 ID로 자기검증·데모 경로·출처 미기록을 거절한다 (2026-09-22, 마이그레이션 0008) |
-| 4 | ② `tests/test_survey.py` — 현재 정의 14개 (이번 실행 안 함) | 완료·통과 (2026-09-22) |
-| 5 | ③ `GET /routes/{id}/path` + 시험 | 완료·통과. 구간이 정거장 수−1보다 적으면 `partial` (2026-09-22) |
-| 6 | ③ `web/` 폴리라인 + `10` 5장 표 | 완료 |
-| 7 | 문서 — IMPROVEMENTS 등록 절차에 명령 이름, CHANGELOG | 완료 |
-| 8 | ④ P6 수신 — 별도 작업 | 대기 (설치 허가) |
+| 1 | 이 계획 | SB-0059 |
+| 2 | ① `samples/stops-provisional.json` + `app.stops import` 덮어쓰기 보호 | SB-0060 |
+| 3 | ② `app/survey.py` — gpx-demo · import · build-path · verify · list | SB-0061. `build-path`가 출처를 `survey_path_builds`에 남기고, `verify`는 출처 트랙 ID로 자기검증·데모 경로·출처 미기록을 거절한다 (2026-09-22, 마이그레이션 0008) |
+| 4 | ② `tests/test_survey.py` — 현재 정의 14개 (이번 실행 안 함) | SB-0062 |
+| 5 | ③ `GET /routes/{id}/path` + 시험 | SB-0063. 구간이 정거장 수−1보다 적으면 `partial` |
+| 6 | ③ `web/` 폴리라인 + `10` 5장 표 | SB-0064 |
+| 7 | 문서 — IMPROVEMENTS 등록 절차에 명령 이름, CHANGELOG | SB-0065 |
+| 8 | ④ P6 수신 — 별도 작업 | SB-0082 (선행: 설치 허가) |
 
 ## 2026-09-23 GPS Logger 후기 이후 순서
 
