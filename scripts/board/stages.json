@@ -1,0 +1,12 @@
+[
+  {"id": "p0", "title": "P0 골격", "goal": "빈 그릇이 돌아간다.", "exit": "ROADMAP P0 '완료 판정' — FR-DM-01, 마이그레이션 up/down 왕복", "docs": ["md/ROADMAP.md", "md/14-infrastructure.md", "md/15-data-model.md", "md/01-conventions.md"]},
+  {"id": "p1", "title": "P1 기준 자료", "goal": "시간표가 DB에 정확히 들어간다.", "exit": "ROADMAP P1 '완료 판정' — FR-RD·FR-SC", "docs": ["md/ROADMAP.md", "md/04-reference-data.md", "md/05-service-calendar.md"]},
+  {"id": "p2", "title": "P2 시간표 학생 화면", "goal": "친구한테 링크를 보낼 수 있다.", "exit": "ROADMAP P2 '완료 판정' — FR-ST·FR-BC·FR-SD", "docs": ["md/ROADMAP.md", "md/03-state-contract.md", "md/10-stop-discovery.md", "md/11-boarding-candidates.md", "md_frontend/must_do.md", "md_frontend/01-screens.md"]},
+  {"id": "p3", "title": "P3 관리자 수동 수집", "goal": "information_status가 observed로 올라간다.", "exit": "ROADMAP P3 '완료 판정' — FR-MC·FR-OB·FR-OP", "docs": ["md/ROADMAP.md", "md/06-manual-collection.md", "md/02-observation-contract.md", "md/13-operations.md"]},
+  {"id": "p4", "title": "P4 실시간", "goal": "버튼을 누르면 학생 화면이 즉시 바뀐다.", "exit": "ROADMAP P4 '완료 판정' — FR-RT", "docs": ["md/ROADMAP.md", "md/12-realtime-delivery.md"]},
+  {"id": "p5", "title": "P5 통계와 예측", "goal": "공시 시각이 아니라 실측 기반으로 답한다.", "exit": "ROADMAP P5 '완료 판정' — FR-TS·FR-PR. 착수 조건: 실측 표본", "docs": ["md/ROADMAP.md", "md/09-travel-statistics.md", "md/08-prediction.md"]},
+  {"id": "p6", "title": "P6 GPS 자동화", "goal": "사람이 안 타도 돌아간다.", "exit": "ROADMAP P6 선행 조건 — 설치 허가·노선 경로(GPX)", "docs": ["md/ROADMAP.md", "md/07-gps-detection.md", "md/PLAN-route-data.md", "md/IMPROVEMENTS.md"]},
+  {"id": "p7", "title": "P7 화면 완성", "goal": "보여주고 싶은 물건이 된다.", "exit": "ROADMAP P7 참조", "docs": ["md/ROADMAP.md", "md_frontend/README.md", "md_frontend/03-figma-handoff.md"]},
+  {"id": "p8", "title": "P8 Kubernetes", "goal": "서비스 분리부터 장애·백업 복원 실습까지.", "exit": "ROADMAP P8 참조 — 기능이 다 돈 뒤", "docs": ["md/ROADMAP.md", "md/14-infrastructure.md"]},
+  {"id": "operations", "title": "상시 운영", "goal": "문서 정리·검토·도구처럼 단계와 무관하게 이어지는 작업입니다.", "exit": "지속 작업. 제품 진행률에서 제외", "docs": ["CLAUDE.md", "md/CHANGELOG.md", "md/PLAN-project-board.md"], "ongoing": true}
+]

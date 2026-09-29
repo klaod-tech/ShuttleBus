@@ -1,0 +1,103 @@
+{
+  "_설명": "ShuttleBus 작업 관리판 설정. 근거와 결정은 md/PLAN-project-board.md, 항목 뜻은 README.txt",
+  "projectName": "ShuttleBus",
+  "tagline": "학교 셔틀 도착 예측 서비스 — 먼저 쓸모 있게, 그다음 정확하게",
+  "taskPrefix": "SB",
+  "port": 8774,
+  "root": "auto",
+  "categories": [
+    "서버",
+    "화면",
+    "자료·현장",
+    "인프라",
+    "문서·연구"
+  ],
+  "categoryRules": [
+    {
+      "category": "서버",
+      "paths": [
+        "README.md",
+        "md/00-overview.md",
+        "md/01-conventions.md",
+        "md/02-observation-contract.md",
+        "md/03-state-contract.md",
+        "md/05-service-calendar.md",
+        "md/07-gps-detection.md",
+        "md/08-prediction.md",
+        "md/09-travel-statistics.md",
+        "md/10-stop-discovery.md",
+        "md/11-boarding-candidates.md",
+        "md/12-realtime-delivery.md",
+        "md/13-operations.md",
+        "md/15-data-model.md",
+        "md/ROADMAP.md",
+        "md/CHANGELOG.md",
+        "md/CHANGELOG-ARCHIVE.md"
+      ]
+    },
+    {
+      "category": "화면",
+      "paths": [
+        "md_frontend/",
+        "web/"
+      ]
+    },
+    {
+      "category": "자료·현장",
+      "paths": [
+        "md/04-reference-data.md",
+        "md/06-manual-collection.md",
+        "md/PLAN-route-data.md",
+        "md/IMPROVEMENTS.md"
+      ]
+    },
+    {
+      "category": "인프라",
+      "paths": [
+        "md/14-infrastructure.md",
+        "SETUP.md"
+      ]
+    },
+    {
+      "category": "문서·연구",
+      "paths": [
+        "md/논문.md",
+        "md/RATIONALE-v7.6.md",
+        "md/PLAN-project-board.md",
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "titlePattern": "점검|재검토"
+    }
+  ],
+  "createDocDir": "md",
+  "quickDocs": [
+    {
+      "path": "md/00-overview.md",
+      "title": "개요와 문서 지도",
+      "note": "목적·범위·16개 문서의 층"
+    },
+    {
+      "path": "md/ROADMAP.md",
+      "title": "구현 순서",
+      "note": "P0~P8 순서와 완료 판정"
+    },
+    {
+      "path": "md_frontend/must_do.md",
+      "title": "화면 단계 할 일",
+      "note": "띄우는 법·주소 함정·S/F/C/A/D 항목"
+    },
+    {
+      "path": "md/CHANGELOG.md",
+      "title": "변경 기록",
+      "note": "최근 작업 3회분"
+    }
+  ],
+  "excludeDirs": [],
+  "aiNames": [
+    "klaod-tech_CL",
+    "klaod-tech_GPT"
+  ],
+  "rulesFile": "CLAUDE.md",
+  "requireSourceForActive": true
+}

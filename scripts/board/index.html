@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>프로젝트 관리판</title>
+<link rel="stylesheet" href="/style.css">
+<script defer src="/app.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#overview"><span class="brand-icon" id="brand-icon">P<span>•</span></span><span><span id="brand-name">프로젝트</span><small>PROJECT BOARD</small></span></a>
+  <p class="nav-label">프로젝트</p>
+  <nav aria-label="주 메뉴">
+    <a href="#overview" data-nav="overview">◈ <span>한눈에 보기</span></a>
+    <a href="#documents" data-nav="documents">▤ <span>프로젝트 여정</span><b id="doc-count">—</b></a>
+    <a href="#board" data-nav="board">▦ <span>진행 보드</span><b id="card-count">—</b></a>
+  </nav>
+  <div class="sidebar-bottom">
+    <span class="live-dot"></span> 내 컴퓨터에서 실행 중
+    <p>문서는 저장소에서 바로 읽고<br>작업 카드는 workspace.json에 저장합니다.</p>
+    <button id="stop-server" type="button">관리판 종료</button>
+  </div>
+</aside>
+<main>
+  <header>
+    <div>
+      <p class="eyebrow" id="eyebrow">PROJECT JOURNAL</p>
+      <h1 id="page-title">한눈에 보기</h1>
+      <p id="page-description"></p>
+    </div>
+    <div class="header-actions">
+      <span id="sync-time">불러오는 중</span>
+      <button id="refresh" type="button">↻ 새로고침</button>
+      <button class="primary" id="add-item" type="button">＋ 작업 추가</button>
+    </div>
+  </header>
+  <p id="notice" role="status" aria-live="polite" hidden></p>
+
+  <section id="overview" class="view">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">NOW BUILDING</p>
+        <h2 id="hero-title">프로젝트</h2>
+        <p id="hero-tagline"></p>
+        <a class="light-button" href="#documents">프로젝트 여정 보기 ↗</a>
+      </div>
+      <div class="hero-side">
+        <span class="pill">현재 단계</span>
+        <h3 id="hero-stage">—</h3>
+        <p id="hero-goal"></p>
+        <a href="#board">진행 보드 →</a>
+      </div>
+    </div>
+    <div id="metrics" class="metrics"></div>
+    <div class="overview-grid">
+      <section>
+        <div class="section-heading"><h2>지금 진행 중</h2><a href="#board">전체 보드 →</a></div>
+        <div id="active-cards" class="stack"></div>
+        <div class="section-heading ready-heading"><h2>바로 할 수 있는 작업</h2><span>선행 작업 완료 · 배치 순서</span></div>
+        <div id="ready-cards" class="stack"></div>
+      </section>
+      <section>
+        <div class="section-heading"><h2 id="quick-title">자주 찾는 문서</h2><span id="quick-note">START HERE</span></div>
+        <div id="quick-docs" class="quick-docs"></div>
+      </section>
+    </div>
+    <div class="section-heading"><h2>분야별 문서 서가</h2><span>문서의 '- 분야:' 또는 config.json 규칙</span></div>
+    <div id="shelves" class="shelves"></div>
+  </section>
+
+  <section id="documents" class="view" hidden>
+    <div id="journey-summary" class="journey-summary"></div>
+    <div id="stage-steps" class="stage-steps" aria-label="프로젝트 단계"></div>
+    <div id="stage-detail" class="stage-detail"></div>
+    <div class="section-heading library-heading"><h2 id="library-scope">단계별 근거 문서</h2><button id="all-documents" type="button">전체 문서 탐색</button></div>
+    <div class="library">
+      <div class="library-nav">
+        <label for="doc-search">문서 검색</label>
+        <input id="doc-search" type="search" placeholder="제목·본문·파일 경로 검색">
+        <label for="doc-group">분류</label>
+        <select id="doc-group"><option value="">모든 문서</option></select>
+        <p id="search-count" class="caption"></p>
+        <div id="doc-list"></div>
+      </div>
+      <div class="reader">
+        <div id="reader-meta"></div>
+        <div id="reader-content"><div class="empty">왼쪽에서 문서를 선택하세요.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="board" class="view" hidden>
+    <div class="toolbar">
+      <label>작업 검색<input id="board-search" type="search" placeholder="번호·제목·내용 검색"></label>
+      <label>단계<select id="board-stage"><option value="">모든 단계</option></select></label>
+      <label>분야<select id="board-category"><option value="">모든 분야</option></select></label>
+      <label>별 중요도<select id="board-priority"><option value="">모든 중요도</option><option value="3">★★★ 줄기 · 선행 필수</option><option value="2">★★ 가지 · 영향 있음</option><option value="1">★ 잎 · 독립 개선</option><option value="0">☆ 미분류</option></select></label>
+      <label>출처<select id="board-kind"><option value="">전체</option><option value="card">작업 카드</option><option value="pending-plan">등록 안 된 계획 문서</option></select></label>
+    </div>
+    <p class="caption">번호로 AI에게 작업을 지시하세요. 별 = 다른 작업에 미치는 영향, 점 = 작업 규모. 같은 칸 안에서는 선행 작업과 배치 순서대로 보입니다.</p>
+    <div id="kanban" class="kanban"></div>
+  </section>
+</main>
+
+<dialog id="editor">
+  <form id="editor-form">
+    <div class="dialog-heading"><h2 id="editor-heading">작업 추가</h2><button type="button" id="close-editor" aria-label="닫기">✕</button></div>
+    <label>제목<input id="item-title" required maxlength="160"></label>
+    <div class="editor-grid">
+      <label>프로젝트 단계<select id="item-stage"></select></label>
+      <label>분야<select id="item-category"></select></label>
+    </div>
+    <div class="editor-grid">
+      <label>상태<select id="item-status"></select></label>
+      <label>원래 항목 번호 · 선택<input id="item-ref" maxlength="100" placeholder="예: must_do C1"></label>
+    </div>
+    <div class="editor-grid">
+      <label>별 · 다른 작업에 미치는 영향<select id="item-priority"><option value="0">☆ 미분류</option><option value="3">★★★ 줄기 · 선행 필수</option><option value="2">★★ 가지 · 영향 있음</option><option value="1">★ 잎 · 독립 개선</option></select></label>
+      <label>점 · 예상 작업 규모<select id="item-size"><option value="1">● 작음</option><option value="2">●● 보통</option><option value="3">●●● 큼</option></select></label>
+    </div>
+    <label>중요도 이유<input id="item-priority-note" maxlength="500" placeholder="이 작업이 끝나지 않으면 무엇이 막히나요?"></label>
+    <div class="editor-grid">
+      <label>배치 순서 · 10과 20 사이면 15<input id="item-order" type="number" min="0" step="1"></label>
+      <label>선행 작업 번호<input id="item-dependencies" placeholder="T-0001, T-0002"></label>
+    </div>
+    <label>내용<textarea id="item-body" rows="7" maxlength="20000" placeholder="해야 할 일과 완료 기준을 적어주세요."></textarea></label>
+    <label>근거 문서<select id="item-source"><option value="">연결하지 않음</option></select></label>
+    <a id="source-link" hidden>근거 문서 읽기 →</a>
+    <label>실제 수행자<input id="item-performer" maxlength="160" placeholder="실제로 작업한 사람 또는 AI"></label>
+    <label>완료 근거<textarea id="item-evidence" rows="3" maxlength="4000" placeholder="무엇을 했고 어떻게 확인했는지, 관련 커밋·문서. 완료로 옮길 때 필수입니다."></textarea></label>
+    <div id="card-tools" class="card-actions" hidden><button type="button" id="copy-task">AI 지시문 복사</button><button type="button" id="copy-task-link">작업 링크 복사</button></div>
+    <label id="feedback-label">AI에게 남길 진행·검수 기록<textarea id="item-feedback" rows="3" maxlength="4000" placeholder="검수 결과·수정 요청을 남기면 다음 AI 작업의 접수함(work.py inbox)에 나타납니다."></textarea></label>
+    <div id="ai-result" class="result-box" hidden></div>
+    <div id="card-history"></div>
+    <p id="editor-error" role="alert"></p>
+    <div class="dialog-footer"><button type="button" class="danger" id="delete-item">삭제</button><button type="submit" class="primary" id="save-item">저장</button></div>
+  </form>
+</dialog>
+</body>
+</html>
