@@ -2,7 +2,7 @@
 
 > 기능별 설계 v7.10. 03·08·11·12의 근거 선택·정렬·발행 규칙과 15 데이터 구조를 반영했다. 변경 내용은 [변경 기록](CHANGELOG.md), 외부 확인 과제는 [개선사항](IMPROVEMENTS.md), 구현 순서는 [로드맵](ROADMAP.md)을 참조한다.
 >
-> **계약이 아닌 기록** — 계획: [경로 자료](PLAN-route-data.md) · [작업 관리판](PLAN-project-board.md) · 문헌 검토: [논문 기록](논문.md) · 점검: [REVIEW-2026-09-21](REVIEW-2026-09-21.md)·[REVIEW-2026-09-22](REVIEW-2026-09-22.md) · 근거: [RATIONALE-v7.6](RATIONALE-v7.6.md). 이들은 규칙을 만들지 않으며 위 설계 문서가 계약을 소유한다.
+> **계약이 아닌 기록** — 상태: [작업 상태](board-status.md) (관리판 자동 생성) · 계획: [경로 자료](PLAN-route-data.md) · [작업 관리판](PLAN-project-board.md) · 문헌 검토: [논문 기록](논문.md) · 점검: [REVIEW-2026-09-21](REVIEW-2026-09-21.md)·[REVIEW-2026-09-22](REVIEW-2026-09-22.md) · 근거: [RATIONALE-v7.6](RATIONALE-v7.6.md). 이들은 규칙을 만들지 않으며 위 설계 문서가 계약을 소유한다.
 > 이 문서는 설계안이며 구현·운행 검증이 완료되었다는 뜻이 아니다.
 
 ---

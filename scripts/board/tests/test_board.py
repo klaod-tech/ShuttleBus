@@ -335,3 +335,60 @@ class CliTests(HttpBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ForeignBoardTests(HttpBase):
+    """같은 PC의 다른 프로젝트 관리판이 같은 포트를 쓰면 저장하지 않는다 (2026-09-29 실제 사례)."""
+
+    def test_save_refuses_a_board_of_another_project(self):
+        data, version = server.read_store()
+        data["cards"].append(card())
+        other = self.root.parent / "someone-elses-project"
+        with patch.object(server, "ROOT", other), patch.object(work, "URL", self.url):
+            with self.assertRaises(ValueError) as caught:
+                work.save(data, version, "Leo_CL", "시험")
+        self.assertIn("다른 프로젝트의 관리판", str(caught.exception))
+        self.assertFalse(self.store.exists())  # 아무것도 쓰지 않았다
+
+    def test_save_goes_through_when_the_board_is_ours(self):
+        data, version = server.read_store()
+        data["cards"].append(card())
+        with patch.object(server, "CONFIG", dict(server.CONFIG, aiNames=["Leo_CL"])), patch.object(work, "URL", self.url):
+            saved = work.save(data, version, "Leo_CL", "시험")
+        self.assertEqual(saved["data"]["cards"][0]["number"], "SB-0001")
+
+
+class StatusDocTests(HttpBase):
+    """카드 상태를 GitHub에서 읽을 문서로 남긴다 — 관리판은 로컬 전용이라서 (2026-09-29)."""
+    config = {"taskPrefix": "SB", "categories": ["개발", "문서"], "statusDoc": "md/board-status.md"}
+
+    def test_render_is_stable_and_escapes_table_cells(self):
+        data = {"cards": [card(number="SB-0002", title="파이프 | 들어간 제목", status="completed", ref="must_do S1"),
+                          card(id="c2", number="SB-0001", title="할 일", stage="ops")], "nextNumber": 3}
+        first, second = server.render_status(data), server.render_status(data)
+        self.assertEqual(first, second)  # 시각을 넣지 않아 같은 카드면 같은 글
+        self.assertIn("| SB-0002 | 완료 | 파이프 " + chr(92) + "| 들어간 제목 |", first)
+        self.assertIn("## 구현 — 완료 1/1", first)
+        self.assertIn("## 운영 — 완료 0/1", first)
+
+    def test_check_flags_missing_and_stale_status_doc_and_export_fixes_it(self):
+        data = {"cards": [card(number="SB-0001", status="planned")], "nextNumber": 2}
+        problems = "\n".join(work.audit(data, server.documents(), set()))
+        self.assertIn("md/board-status.md: 상태 문서가 없습니다", problems)
+        server.write_status(data)
+        self.assertEqual(work.audit(data, server.documents(), set()), [])  # 자동 생성 문서는 분야·작업 검사에서 빠진다
+        (self.root / "md/board-status.md").write_text("손으로 고친 내용\n", encoding="utf-8")
+        self.assertIn("상태 문서가 카드와 다릅니다", "\n".join(work.audit(data, server.documents(), set())))
+
+    def test_saving_through_the_board_rewrites_the_status_doc(self):
+        data, version = server.read_store()
+        data["cards"].append(card(title="저장 뒤 보이는 작업"))
+        self.assertEqual(self.request("/api/workspace", dict(data=data, version=version))[0], 200)
+        self.assertIn("저장 뒤 보이는 작업", (self.root / "md/board-status.md").read_text(encoding="utf-8"))
+
+    def test_status_doc_setting_must_stay_inside_the_repo(self):
+        for bad in ("../outside.md", "md/status.txt"):
+            with self.subTest(bad=bad):
+                path = self.write("config.json", json.dumps({"statusDoc": bad}))
+                with self.assertRaises(ValueError):
+                    server.load_config(path)

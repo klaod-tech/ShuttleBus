@@ -16,7 +16,7 @@ import uuid
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from server import CONFIG, ROOT, STAGES, STATUSES, documents, read_store, validate_ai, git_commit  # noqa: E402
+from server import CONFIG, IDENTITY, ROOT, STAGES, STATUSES, documents, read_store, render_status, status_path, validate_ai, write_status, git_commit  # noqa: E402
 
 URL = f"http://127.0.0.1:{CONFIG['port']}"
 BASELINE = HERE / "baseline-docs.json"
@@ -26,9 +26,38 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def ensure_own_board():
+    """저장 전에 그 포트의 관리판이 **이 프로젝트의 것인지** 확인한다.
+
+    같은 PC에 다른 프로젝트 관리판이 같은 포트로 떠 있으면, 확인 없이 보낸 카드가 그 프로젝트에
+    저장될 수 있다 (2026-09-29, 8774 포트에서 실제로 겪음 — 그쪽 검증이 형식 차이로 거절해 무사했다).
+    """
+    state = board_state()
+    if state and not (state.get("app") == IDENTITY and Path(state.get("root", "")).resolve() == Path(ROOT).resolve()):
+        raise ValueError(
+            f"{URL}은 다른 프로젝트의 관리판({state.get('root', '알 수 없음')})이다. "
+            "그쪽을 끄거나 config.json의 port를 바꾼다"
+        )
+    if not state:
+        import launch
+
+        if not launch.ensure_server():
+            raise ValueError(f"포트 {CONFIG['port']}번을 다른 프로그램이 쓰고 있습니다. config.json의 port를 확인하세요.")
+
+
+def board_state():
+    """저장할 주소(URL)의 관리판 신원. 응답이 없으면 None."""
+    try:
+        with urllib.request.urlopen(URL + "/api/health", timeout=1) as response:
+            return json.load(response)
+    except (OSError, ValueError):
+        return None
+
+
 def save(data, version, by, message):
     """POST through the running board (starts it in the background if needed)."""
     validate_ai(by)
+    ensure_own_board()
     body = json.dumps(dict(data=data, version=version, actor="ai", by=by, message=message), ensure_ascii=False).encode("utf-8")
     for attempt in (1, 2):
         request = urllib.request.Request(URL + "/api/workspace", method="POST", data=body,
@@ -102,7 +131,16 @@ def audit(data, docs, baseline):
             problems.append(label + ": 근거 문서가 없습니다 " + card["source"])
         if CONFIG["requireSourceForActive"] and card["status"] in ("in_progress", "review", "completed") and not card["source"]:
             problems.append(label + ": 진행·검수·완료 작업에는 근거 문서(source)가 필요합니다 (work.py link)")
+    status_doc = CONFIG.get("statusDoc") or ""
+    path = status_path()
+    if path is not None:
+        if not path.exists():
+            problems.append(status_doc + ": 상태 문서가 없습니다 (work.py export)")
+        elif path.read_text(encoding="utf-8") != render_status(data):
+            problems.append(status_doc + ": 상태 문서가 카드와 다릅니다 — 직접 고쳤거나 오래됐습니다 (work.py export)")
     for doc in docs:
+        if doc["path"] == status_doc:
+            continue  # 자동 생성 문서라 분야·작업 줄 검사에서 뺀다
         if doc["path"] in baseline and not doc["task"]:
             continue
         if not doc["declared"] or any(c not in CONFIG["categories"] for c in doc["declared"]):
@@ -135,6 +173,7 @@ def build_parser():
     nxt = sub.add_parser("next", help="선행 작업이 끝나 바로 할 수 있는 카드")
     nxt.add_argument("--limit", type=int, default=5)
     sub.add_parser("check")
+    sub.add_parser("export", help="카드 상태 문서(config.json statusDoc)를 다시 쓴다")
     sub.add_parser("show").add_argument("number")
     sync = sub.add_parser("sync-plans", help="'- 상태:' 줄이 있는 계획 문서를 카드로 한 번 등록")
     sync.add_argument("--by", required=True)
@@ -184,6 +223,12 @@ def main(argv=None):
             raise ValueError("이미 초기화했습니다. 다시 기록하려면 --force (새 문서도 검사 제외가 됩니다).")
         BASELINE.write_text(json.dumps(sorted(doc_paths), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         emit(dict(root=str(ROOT), project=CONFIG["projectName"], baselineDocs=len(doc_paths), stages=[s["id"] for s in STAGES]))
+        return 0
+    if args.command == "export":
+        if status_path() is None:
+            raise ValueError("config.json에 statusDoc이 없습니다.")
+        changed = write_status(data)
+        emit(dict(path=CONFIG["statusDoc"], changed=changed, cards=len(data["cards"])))
         return 0
     if args.command == "check":
         problems = audit(data, docs, load_baseline())

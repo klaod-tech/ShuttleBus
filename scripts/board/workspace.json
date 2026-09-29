@@ -62,7 +62,7 @@
       "id": "903f3960-82bc-47c8-af45-7a77db26fda8",
       "number": "SB-0003",
       "title": "중간 정거장(탕정역·시티프라디움 등) 정차 여부 확인",
-      "stage": "p1",
+      "stage": "operations",
       "category": "자료·현장",
       "status": "planned",
       "source": "md/IMPROVEMENTS.md",
@@ -77,13 +77,19 @@
       "performedBy": "",
       "result": "",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-29T11:16:29.454336+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:16:29.454336+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
         }
       ]
     },
@@ -91,7 +97,7 @@
       "id": "cdce5e12-badc-4a0f-b34f-bf2573962c10",
       "number": "SB-0004",
       "title": "외부역 정차 시간(도착 후 몇 분 뒤 출발) 확인",
-      "stage": "p1",
+      "stage": "operations",
       "category": "자료·현장",
       "status": "planned",
       "source": "md/IMPROVEMENTS.md",
@@ -106,13 +112,19 @@
       "performedBy": "",
       "result": "",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-29T11:16:29.454336+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:16:29.454336+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
         }
       ]
     },
@@ -120,7 +132,7 @@
       "id": "43ae8f0b-abbc-4223-84f1-95c7f05790e7",
       "number": "SB-0005",
       "title": "중간 구간 대략 소요 범위 확인",
-      "stage": "p1",
+      "stage": "operations",
       "category": "자료·현장",
       "status": "planned",
       "source": "md/IMPROVEMENTS.md",
@@ -135,13 +147,19 @@
       "performedBy": "",
       "result": "",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-29T11:16:29.454336+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:16:29.454336+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
         }
       ]
     },
@@ -149,7 +167,7 @@
       "id": "8b7337e2-3be5-4906-8e40-bce05ad3fe52",
       "number": "SB-0006",
       "title": "펜타포트 위치 확인",
-      "stage": "p1",
+      "stage": "operations",
       "category": "자료·현장",
       "status": "planned",
       "source": "md/IMPROVEMENTS.md",
@@ -164,13 +182,19 @@
       "performedBy": "",
       "result": "",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-29T11:16:29.454336+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:16:29.454336+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
         }
       ]
     },
@@ -178,7 +202,7 @@
       "id": "876f0762-9d93-4e02-8531-6d8f1fcd8ada",
       "number": "SB-0007",
       "title": "시간표 재시드가 이미 생성된 회차 시각에 반영되지 않는 한계",
-      "stage": "p1",
+      "stage": "operations",
       "category": "서버",
       "status": "planned",
       "source": "md/IMPROVEMENTS.md",
@@ -193,13 +217,19 @@
       "performedBy": "",
       "result": "",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-29T11:16:29.454336+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:16:29.454336+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
         }
       ]
     },
@@ -207,7 +237,7 @@
       "id": "c11e90c9-acf2-4dfb-9a34-346d9e4a20c3",
       "number": "SB-0008",
       "title": "정상 실행에서 회차 보충 작업이 날짜별 회차를 만드는지 확인",
-      "stage": "p1",
+      "stage": "operations",
       "category": "서버",
       "status": "planned",
       "source": "md/REVIEW-2026-09-21.md",
@@ -222,13 +252,19 @@
       "performedBy": "",
       "result": "",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-29T11:16:29.454336+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:16:29.454336+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
         }
       ]
     },
@@ -2899,7 +2935,107 @@
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
         }
       ]
+    },
+    {
+      "id": "f3e12d35-a7ee-4d71-b44a-1ad72720e609",
+      "title": "관리판 상태를 GitHub에서 보이게 — 카드 상태 자동 생성 문서",
+      "category": "문서·연구",
+      "stage": "operations",
+      "source": "md/PLAN-project-board.md",
+      "body": "외부 화면 담당자는 로컬 관리판을 볼 수 없어 must_do의 SB 번호만으로는 상태를 모른다. 카드에서 상태 문서를 자동 생성해 커밋하고 check가 최신인지 검사한다 (가안, 2026-09-29 사용자 결정)",
+      "status": "completed",
+      "agent": "klaod-tech_CL",
+      "result": "상태 자동 생성 문서 도입",
+      "updated": "2026-09-29T11:20:01.136970+00:00",
+      "log": [
+        {
+          "at": "2026-09-29T11:14:13.264943+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        },
+        {
+          "at": "2026-09-29T11:14:34.925384+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "착수"
+        },
+        {
+          "at": "2026-09-29T11:20:01.136970+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "상태 자동 생성 문서 도입"
+        }
+      ],
+      "priority": 3,
+      "size": 2,
+      "dependsOn": [],
+      "ref": "PLAN-project-board 6장",
+      "number": "SB-0099",
+      "order": 990,
+      "priorityNote": "",
+      "evidence": "md/board-status.md 생성·커밋. 관리판 저장 시 자동 갱신 확인(SB-0100 상태 변경이 즉시 반영), work.py check가 없는/다른 문서를 잡아냄 확인, 관리판 시험 26개 통과(추가: 렌더 안정성·오래됨 검사·저장 시 갱신·설정 경로 검사)",
+      "performedBy": ""
+    },
+    {
+      "id": "6980cf9a-8a1a-48a1-8130-e2aba2be9af1",
+      "title": "관리판 도입 뒤 정리 — 포트 충돌·신원 확인·P1 진행도·.claude 스킬·카드 편집 규칙·낡은 좌표 문구·브랜치 병합",
+      "category": "문서·연구",
+      "stage": "operations",
+      "source": "md/PLAN-project-board.md",
+      "body": "2026-09-29 검토 결과. 다른 프로젝트 관리판이 같은 8774 포트를 써서 work.py가 그쪽에 저장을 시도했다(거절돼 무사). 나머지는 검토 ②~⑥",
+      "status": "completed",
+      "agent": "klaod-tech_CL",
+      "result": "도입 뒤 정리 완료 — 브랜치 병합은 커밋 뒤 수행",
+      "updated": "2026-09-29T11:20:01.523372+00:00",
+      "log": [
+        {
+          "at": "2026-09-29T11:14:21.381091+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        },
+        {
+          "at": "2026-09-29T11:14:35.341900+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "착수"
+        },
+        {
+          "at": "2026-09-29T11:16:50.735013+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "P1 현장 확인 카드 6장을 상시 운영으로 이동 — P1 진행도 1/1"
+        },
+        {
+          "at": "2026-09-29T11:16:51.165164+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "자동 갱신 시험"
+        },
+        {
+          "at": "2026-09-29T11:17:02.407252+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "자동 갱신 시험 끝, 작업 계속"
+        },
+        {
+          "at": "2026-09-29T11:20:01.523372+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "도입 뒤 정리 완료 — 브랜치 병합은 커밋 뒤 수행"
+        }
+      ],
+      "priority": 2,
+      "size": 2,
+      "dependsOn": [],
+      "ref": "",
+      "number": "SB-0100",
+      "order": 1000,
+      "priorityNote": "",
+      "evidence": "다른 관리판(8774, sitting-posture-corrector) 저장 시도 재현 후 신원 확인으로 거절 확인, 포트 8784로 변경, P1 카드 6장 상시 운영 이동(P1 1/1), .claude/skills 진입 파일 2개, CLAUDE.md 8장 규칙, must_do 좌표 문구. 관리판 시험 26개 통과, work.py check PASS, md 링크 깨짐 0",
+      "performedBy": ""
     }
   ],
-  "nextNumber": 99
+  "nextNumber": 101
 }

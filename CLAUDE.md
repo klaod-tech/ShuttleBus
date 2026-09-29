@@ -72,4 +72,7 @@
 - md 표의 `카드` 열이 상태를 가리킨다. 끝난 항목도 md 행과 ID는 지우지 않는다 — 코드 주석이 그 ID를 가리킨다.
 - AI 이름은 `klaod-tech_CL`(Claude) / `klaod-tech_GPT`(Codex 등). `scripts/board/config.json`의 `aiNames`가 다른 이름을 거절한다.
 - 끝내기 전 `work.py check`. CHANGELOG 규칙(3장)은 그대로다 — 카드 이력은 작업 단위, CHANGELOG는 큰 변화.
+- **GitHub에서 보는 상태는 `md/board-status.md`다.** 관리판이 카드에서 자동으로 만들고 저장할 때마다 다시 쓴다. 직접 고치지 않는다 — `check`가 카드와 다르면 실패한다. 손으로 다시 만들려면 `work.py export`. 관리판은 로컬 전용이라 외부 화면 담당자는 이 문서로 상태를 본다 (2026-09-29).
+- **카드는 `develop`에서만 고친다.** 카드 전체가 `workspace.json` 한 파일이라 두 브랜치에서 고치면 병합이 충돌한다. 다른 브랜치에서 작업하면 카드 변경은 `develop`에 돌아와서 한다.
+- 관리판 포트는 8784다. 같은 PC에 다른 프로젝트 관리판(템플릿 기본 8774)이 떠 있어도 `work.py`는 저장 전에 신원을 확인하고 거절한다.
 - 절차 스킬: `.agents/skills/board-workflow`, `.agents/skills/board-doc-map`이 정본이다. Claude Code에서 스킬 이름으로 부르려면 `.claude/skills/`에 이 정본을 가리키는 파일을 둔다.

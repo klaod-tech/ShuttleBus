@@ -37,6 +37,9 @@ DEFAULT_CONFIG = {
     "aiNames": [],
     "rulesFile": "AGENTS.md",
     "requireSourceForActive": True,
+    # 카드 상태를 저장소에 문서로 남길 경로 (예: "md/board-status.md"). 비우면 만들지 않는다.
+    # 관리판은 로컬 전용이라, GitHub만 보는 사람에게 상태를 보이려면 커밋되는 문서가 필요하다
+    "statusDoc": "",
 }
 
 
@@ -67,6 +70,9 @@ def load_config(path=None):
             raise ValueError(f"config.json {key}는 목록입니다.")
     if not isinstance(config["createDocDir"], str) or ".." in Path(config["createDocDir"]).parts:
         raise ValueError("config.json createDocDir는 저장소 안의 상대 경로입니다.")
+    status_doc = config["statusDoc"]
+    if not isinstance(status_doc, str) or (status_doc and (".." in Path(status_doc).parts or not status_doc.endswith(".md"))):
+        raise ValueError("config.json statusDoc은 저장소 안의 .md 상대 경로이거나 빈 값입니다.")
     return config
 
 
@@ -358,6 +364,68 @@ def save_store(data):
     return hashlib.sha256(raw).hexdigest()
 
 
+# ---------------------------------------------------------------- status document
+
+STATUS_LABELS = {"completed": "완료", "review": "검수", "in_progress": "진행 중", "planned": "할 일", "blocked": "결정·확인 필요"}
+
+
+def _cell(text):
+    return str(text or "").replace("|", "\\|").replace("\n", " ").strip()
+
+
+def render_status(data):
+    """카드 상태를 사람이 GitHub에서 읽을 문서로 만든다. 시각을 넣지 않아 같은 카드면 같은 글이 된다."""
+    cards = [c for c in data["cards"] if c.get("number")]
+    lines = [
+        "# 작업 상태 — 관리판 자동 생성",
+        "",
+        "- 분야: 문서·연구",
+        "",
+        "> **이 파일은 자동으로 만들어진다. 직접 고치지 않는다.** 상태의 주인은 작업 관리판 카드다",
+        "> (`scripts/board/workspace.json`). 카드가 바뀌면 관리판 저장 때 다시 쓰이고, 손으로 다시 만들려면",
+        "> `python scripts/board/work.py export`. `work.py check`가 이 파일이 최신인지 검사한다.",
+        ">",
+        "> md 표의 `카드` 열(`SB-0000`)이 가리키는 상태를 여기서 찾는다.",
+        "",
+    ]
+    counts = {key: sum(1 for c in cards if c["status"] == key) for key in STATUS_LABELS}
+    lines += ["| 상태 | 카드 |", "|---|---|"]
+    lines += [f"| {label} | {counts[key]} |" for key, label in STATUS_LABELS.items()]
+    lines += [f"| 합계 | {len(cards)} |", ""]
+    order = {key: i for i, key in enumerate(STATUS_LABELS)}
+    for stage in STAGES:
+        rows = [c for c in cards if c.get("stage") == stage["id"]]
+        if not rows:
+            continue
+        done = sum(1 for c in rows if c["status"] == "completed")
+        lines += [f"## {stage.get('title', stage['id'])} — 완료 {done}/{len(rows)}", ""]
+        lines += ["| 카드 | 상태 | 제목 | 분야 | 원래 항목 |", "|---|---|---|---|---|"]
+        for c in sorted(rows, key=lambda c: (order.get(c["status"], 9), c["number"])):
+            lines.append(f"| {c['number']} | {STATUS_LABELS.get(c['status'], c['status'])} | {_cell(c['title'])} | "
+                         f"{_cell(c.get('category'))} | {_cell(c.get('ref'))} |")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def status_path():
+    return (ROOT / CONFIG["statusDoc"]) if CONFIG.get("statusDoc") else None
+
+
+def write_status(data):
+    """statusDoc이 설정돼 있으면 카드 상태 문서를 다시 쓴다. 내용이 같으면 파일을 건드리지 않는다."""
+    path = status_path()
+    if path is None:
+        return False
+    text = render_status(data)
+    if path.exists() and path.read_text(encoding="utf-8") == text:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix(".tmp")
+    temp.write_text(text, encoding="utf-8", newline="\n")
+    os.replace(temp, path)
+    return True
+
+
 def git_commit(ref):
     """Look up one commit by hash prefix. Returns None when the project has no git."""
     if not re.fullmatch(r"[0-9a-fA-F]{7,40}", ref or ""):
@@ -470,6 +538,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(409, {"error": "다른 창이나 AI가 먼저 수정했습니다. 입력은 창에 남아 있습니다. 내용을 복사해 두고 새로고침한 뒤 다시 적용하세요."})
                 data = prepare_cards(payload["data"], previous, actor, by, message)
                 new_version = save_store(data)
+                write_status(data)
             self.send(200, {"data": data, "version": new_version})
         except (ValueError, OSError) as error:
             self.send(400, {"error": "저장하지 못했습니다: " + str(error)})

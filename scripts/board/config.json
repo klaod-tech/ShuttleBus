@@ -3,7 +3,8 @@
   "projectName": "ShuttleBus",
   "tagline": "학교 셔틀 도착 예측 서비스 — 먼저 쓸모 있게, 그다음 정확하게",
   "taskPrefix": "SB",
-  "port": 8774,
+  "port": 8784,
+  "statusDoc": "md/board-status.md",
   "root": "auto",
   "categories": [
     "서버",
