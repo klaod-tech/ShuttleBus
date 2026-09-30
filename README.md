@@ -95,7 +95,7 @@ web/
 |---|---|
 | API 주소 | `http://127.0.0.1:8000`, 모든 경로 앞에 `/api/v1`. 문서 화면 `/docs` |
 | 실시간 | 같은 주소의 `/socket.io` (Socket.IO). 이벤트는 `trip:state`·`notice:changed`·`schedule:changed`·`candidates:changed` |
-| CORS | 루트 `.env`에 `CORS_ORIGINS=http://localhost:3000` 후 재기동. REST·Socket.IO에 함께 적용된다 |
+| CORS | 루트 `.env`에 `CORS_ORIGINS=http://localhost:3000` 후 재기동. REST·Socket.IO에 함께 적용된다. 담당자 앱은 별도 앱이라 그 출처도 쉼표로 더한다 ([md_frontend/01](md_frontend/01-screens.md) '담당자 화면은 별도 앱') |
 | 로그인 | `POST /api/v1/auth/login` → 토큰을 `Authorization: Bearer …` 헤더로. 학생 조회는 로그인 불필요 |
 | 변경 요청 | `Idempotency-Key` 헤더 필요 (로그인·시계 확인은 예외) |
 | 브라우저 키 | 카카오 JavaScript 키는 프론트 프로젝트의 `.env.local`에 `NEXT_PUBLIC_…`으로. 서버 비밀값과 섞지 않는다 |
