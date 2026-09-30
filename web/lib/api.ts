@@ -178,7 +178,7 @@ export function formatClock(iso: string): string {
 /**
  * 남은 시간 표시. 1시간 미만이면 'n분 뒤', 1시간 이상이면 HH:mm. 1분 미만이면 '1분 이내'.
  * 판단은 반올림한 분이 아니라 실제 남은 시간이다. 0 이하가 됐다고 '도착'을 만들지 않는다 — 호출한 쪽이 사유로 처리한다.
- * 분 단위 내림·올림은 미확정(must_do F2) — 여기서는 내림을 임시로 쓴다.
+ * 분은 내림한다 (md_frontend/02 '시간 표시', 2026-09-30 확정).
  */
 export function formatRemaining(targetIso: string, serverTimeIso: string, elapsedMs: number): string {
   const remainingMs = new Date(targetIso).getTime() - (new Date(serverTimeIso).getTime() + elapsedMs);

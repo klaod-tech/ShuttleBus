@@ -593,26 +593,32 @@
       "title": "화면 설계 남은 선택 결정 (방향 합치기·분 단위 표시·세부 디자인·프로필 항목)",
       "stage": "p2",
       "category": "화면",
-      "status": "blocked",
+      "status": "completed",
       "source": "md_frontend/must_do.md",
       "ref": "must_do F2 · ROADMAP 결정 대기 2 · 03 남은 선택 2~4",
       "body": "03 '화면 설계 확정 전 남은 선택' 2~4: 정류장 카드 방향 합쳐 2개 vs 방향 선택 후 2개, 02의 분 단위 내림·올림과 1분 미만 문구, 세부 크기·시각 디자인·프로필 설정 항목. 공지는 배너로 제공. web/lib/api.ts는 분 단위를 임시로 내림.",
-      "evidence": "",
+      "evidence": "사용자 결정(2026-09-30 대화)을 md_frontend/03 남은 선택 2·3·4, 02 '시간 표시'·'선택과 정렬 제안', web/lib/api.ts 주석에 반영. 코드 동작은 이미 내림·합치기라 변경 없음",
       "priority": 3,
       "size": 1,
       "order": 40,
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "사용자 결정 2026-09-30: 방향 합치기 확정(순환 노선이라 원하는 곳에서 내림), 분 내림 확정. 나머지는 SB-0103·SB-0104로 분리",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-30T01:18:33.726290+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-30T01:18:33.726290+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "사용자 결정 2026-09-30: 방향 합치기 확정(순환 노선이라 원하는 곳에서 내림), 분 내림 확정. 나머지는 SB-0103·SB-0104로 분리"
         }
       ]
     },
@@ -3143,7 +3149,71 @@
       "priorityNote": "",
       "evidence": "",
       "performedBy": ""
+    },
+    {
+      "id": "ef61b2e4-e627-4938-8347-d0fbfe60d6c7",
+      "title": "다른 날짜 조회·자정 표시 제안 채택 여부",
+      "category": "화면",
+      "stage": "p2",
+      "source": "md_frontend/02-stop-upcoming.md",
+      "body": "02 '다른 날짜와 자정' 제안: 미래 날짜는 그날 첫 방문부터 2개, 과거 날짜는 시간표 열람, 자정을 넘는 운행은 '다음 날 00:10', 자정에 날짜 자동 전환 대신 '오늘 보기'. 오늘 남은 버스가 없을 때 다른 날짜 조회를 권할지. 사용자 결정 필요.",
+      "status": "blocked",
+      "agent": "klaod-tech_CL",
+      "result": "사용자 결정 대기 (CLAUDE.md 8장)",
+      "updated": "2026-09-30T01:18:33.335678+00:00",
+      "log": [
+        {
+          "at": "2026-09-30T01:18:25.759961+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        },
+        {
+          "at": "2026-09-30T01:18:33.335678+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "사용자 결정 대기 (CLAUDE.md 8장)"
+        }
+      ],
+      "priority": 2,
+      "size": 1,
+      "dependsOn": [],
+      "ref": "03 남은 선택 3 (SB-0020에서 분리)",
+      "number": "SB-0103",
+      "order": 1030,
+      "priorityNote": "",
+      "evidence": "",
+      "performedBy": ""
+    },
+    {
+      "id": "f384e363-0735-4d2b-808b-6346e2b8e76b",
+      "title": "세부 크기·시각 디자인·프로필 설정 항목",
+      "category": "화면",
+      "stage": "p2",
+      "source": "md_frontend/05-design-notes.md",
+      "body": "디자인은 사용자가 따로 정한다(2026-09-29). 준비 자료는 md_frontend/05. 메뉴는 검색·시간표·하단 프로필로 확정, 독립 이용 안내·공지 메뉴 제외.",
+      "status": "planned",
+      "agent": "klaod-tech_CL",
+      "result": "",
+      "updated": "2026-09-30T01:18:25.988514+00:00",
+      "log": [
+        {
+          "at": "2026-09-30T01:18:25.988514+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        }
+      ],
+      "priority": 1,
+      "size": 1,
+      "dependsOn": [],
+      "ref": "03 남은 선택 4 (SB-0020에서 분리)",
+      "number": "SB-0104",
+      "order": 1040,
+      "priorityNote": "",
+      "evidence": "",
+      "performedBy": ""
     }
   ],
-  "nextNumber": 103
+  "nextNumber": 105
 }
