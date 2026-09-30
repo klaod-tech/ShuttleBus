@@ -35,6 +35,16 @@ def combine_seoul(service_date: date, t: time, day_offset: int = 0) -> datetime:
     return local
 
 
+def depart_cutoff(service_date: date, depart_after: time | None, now: datetime) -> datetime | None:
+    """출발 시각 조건의 기준 시각 (11 11장 '출발 시각 조건'). 조건이 없으면 None.
+
+    오늘의 지난 시각은 지금으로 본다 — 기기 시계 차이로 오류를 내지 않는다.
+    """
+    if depart_after is None:
+        return None
+    return max(combine_seoul(service_date, depart_after), now)
+
+
 def parse_hhmm(text: str) -> time:
     hour, minute = text.split(":")
     return time(int(hour), int(minute))

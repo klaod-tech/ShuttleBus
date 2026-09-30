@@ -1,7 +1,7 @@
 """회차 목록·탑승 후보 (11 7장), 회차 상태 (03 9장)."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ from app.candidates.service import find_boarding_candidates, trips_for_route_dat
 from app.config import settings
 from app.clock import get_now
 from app.db import get_session
-from app.errors import check_service_date, invalid, not_found
+from app.errors import check_depart_after, check_service_date, invalid, not_found
 from app.models.calendar import ScheduledTrip
 from app.models.realtime import TripStateSnapshot
 from app.models.reference import Route, Stop
@@ -23,7 +23,7 @@ from app.state.bundle import load_trip_bundles
 from app.state.schemas import StopOut, TripStateOut, VisitOut
 from app.timetable.parse import student_union_applies
 from app.timetable.source_2026_2 import CAMPUS, ROUTES
-from app.timeutil import SEOUL, to_seoul as _local
+from app.timeutil import SEOUL, depart_cutoff, to_seoul as _local
 
 router = APIRouter(prefix="/api/v1")
 
@@ -75,6 +75,8 @@ class CandidatesOut(BaseModel):
     no_candidate_reason: str | None
     next_known_service_date: date | None
     has_unknown_dates_before: bool
+    # 서버가 실제로 쓴 출발 시각 조건. 조건이 없으면 null (11 7장)
+    depart_after_applied: datetime | None = None
 
 
 class TripSummaryOut(BaseModel):
@@ -113,6 +115,7 @@ def get_scheduled_trips(
     service_date: date,
     origin_stop_id: uuid.UUID | None = None,
     destination_stop_id: uuid.UUID | None = None,
+    depart_after: time | None = None,
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
 ):
@@ -121,12 +124,16 @@ def get_scheduled_trips(
     check_service_date(service_date)
     if (origin_stop_id is None) != (destination_stop_id is None):
         raise invalid("origin_stop_id와 destination_stop_id는 함께 보내거나 함께 생략해야 합니다.")
+    check_depart_after(depart_after)
+    if depart_after is not None and origin_stop_id is None:
+        raise invalid("depart_after는 출발·도착 후보 검색에만 쓴다. 회차 목록은 하루 전체다.")
 
     if origin_stop_id is not None:
         for stop_id in (origin_stop_id, destination_stop_id):
             if session.get(Stop, stop_id) is None:
                 raise not_found("정거장")
-        result = find_boarding_candidates(session, route_id, service_date, origin_stop_id, destination_stop_id, now)
+        cutoff = depart_cutoff(service_date, depart_after, now)
+        result = find_boarding_candidates(session, route_id, service_date, origin_stop_id, destination_stop_id, now, cutoff)
         session.commit()
         return CandidatesOut(
             schedule_status=result.schedule_status,
@@ -139,6 +146,7 @@ def get_scheduled_trips(
             no_candidate_reason=result.no_candidate_reason,
             next_known_service_date=result.next_known_service_date,
             has_unknown_dates_before=result.has_unknown_dates_before,
+            depart_after_applied=_local(cutoff),
         )
 
     calendar = resolve_service_calendar(session, route_id, service_date)

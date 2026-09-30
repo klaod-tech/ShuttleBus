@@ -18,6 +18,19 @@
 
 검증: 관리판 `work.py check` PASS. 코드 동작 변경 없음(주석만) — 서버 시험·화면 typecheck는 돌리지 않았다.
 
+### 출발 시각 선택 — API 계약 변경 (같은 날, SB-0107, 승인)
+
+미래 날짜를 고르면 첫차 2개만 보여 "내일 9시쯤"을 찾을 수 없었다. 네이버 지도의 '지금 출발'처럼 출발 시각을 고르게 했다. **출발 기준만** — 도착 기준은 교통 상황 예측이 필요해 두지 않는다(사용자 결정).
+
+| 무엇 | 어떻게 |
+|---|---|
+| 요청 | `GET /stops/{id}/upcoming`과 후보 검색 `GET /scheduled-trips?origin…&destination…`에 선택 조건 `depart_after=HH:MM`(서울). 없으면 이전과 같다. 회차 목록 모드는 받지 않는다(422) |
+| 규칙 | 기준 = 운행일 + 시각. 오늘의 지난 시각은 지금으로 본다(오류 아님). 기준이 지금보다 뒤면 정상 목록은 기준 이후만, 정거장 조회의 `attention`(지금 상황)은 싣지 않는다. 상태·예측은 언제나 지금 기준으로 계산하고 거르기만 한다 |
+| 응답 | 두 조회에 `depart_after_applied`(실제로 쓴 기준, 조건 없으면 null) |
+| 문서 | 정본 [`11`](11-boarding-candidates.md) 11장 '출발 시각 조건'·7장, FR-BC-29~32. 경위 [PLAN-departure-time](PLAN-departure-time.md). 화면 [01](../md_frontend/01-screens.md) '지금 출발' 칩, [02](../md_frontend/02-stop-upcoming.md). `web/lib/api.ts` 타입 |
+
+검증: 서버 pytest 228개 통과(FR-BC-29~32 시험 6개 추가), 화면 `npm run typecheck` 통과, 관리판 `work.py check` PASS.
+
 ### 할 수 있는 서버 작업 (같은 날)
 
 | 무엇 | 어떻게 |

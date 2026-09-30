@@ -159,10 +159,17 @@ export type StopUpcomingResponse = {
     | "unconfirmed_remaining"
     | "no_remaining_service"
     | null;
+  /** 서버가 실제로 쓴 출발 시각 조건(오늘의 지난 시각은 지금). 조건이 없으면 null — ../md/11 11장 '출발 시각 조건' */
+  depart_after_applied: string | null;
 };
 
-export const getStopUpcoming = (stopId: string, routeId: string, serviceDate: string, signal?: AbortSignal) =>
-  getJson<StopUpcomingResponse>(`/stops/${stopId}/upcoming`, { route_id: routeId, service_date: serviceDate }, signal);
+/** departAfter는 '지금 출발' 칩이 고른 서울 시각 "HH:MM". 생략하면 지금(오늘) 또는 첫 방문(미래 날짜)부터. */
+export const getStopUpcoming = (stopId: string, routeId: string, serviceDate: string, signal?: AbortSignal, departAfter?: string) =>
+  getJson<StopUpcomingResponse>(
+    `/stops/${stopId}/upcoming`,
+    { route_id: routeId, service_date: serviceDate, ...(departAfter ? { depart_after: departAfter } : {}) },
+    signal,
+  );
 
 // ---------- 시각 표시 (md_frontend/02) ----------
 

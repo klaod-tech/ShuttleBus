@@ -1,4 +1,4 @@
-"""11 11장 정거장 단독 조회 (FR-BC-23~28) · 03 5장 실측 시각 (FR-ST-14)."""
+"""11 11장 정거장 단독 조회 (FR-BC-23~32) · 03 5장 실측 시각 (FR-ST-14)."""
 
 from datetime import datetime
 
@@ -9,9 +9,9 @@ from tests.test_collection import Collector, accounts, trusted_settings  # noqa:
 MON = "2026-09-14"
 
 
-def upcoming(client, stop, route="cheonan_asan", day=MON, expect=200):
+def upcoming(client, stop, route="cheonan_asan", day=MON, expect=200, **extra):
     res = client.get(
-        f"/api/v1/stops/{stop_id(stop)}/upcoming", params={"route_id": str(route_id(route)), "service_date": day}
+        f"/api/v1/stops/{stop_id(stop)}/upcoming", params={"route_id": str(route_id(route)), "service_date": day, **extra}
     )
     assert res.status_code == expect, res.text
     return res.json()
@@ -156,3 +156,44 @@ def test_visit_out_has_observed_time_fields_even_without_observation(client, set
     visit = state["vehicles"][0]["visits"][0]
     assert {"observed_arrival_at", "observed_departure_at", "observed_passed_at"} <= visit.keys()
     assert visit["observed_arrival_at"] is None
+
+
+# ---------- 출발 시각 조건 (11 11장, 2026-09-30) ----------
+
+
+def test_fr_bc_29_future_date_depart_after_skips_earlier_visits(client, set_now):
+    set_now(2026, 9, 13, 15, 0)  # 전날 오후에 다음 날 09:00 출발을 본다
+    plain = upcoming(client, "아산캠퍼스")
+    assert plain["upcoming"][0]["display_at"] == "2026-09-14T08:05:00+09:00"  # 조건 없으면 첫 방문부터
+    assert plain["depart_after_applied"] is None
+    body = upcoming(client, "아산캠퍼스", depart_after="09:00")
+    assert body["depart_after_applied"] == "2026-09-14T09:00:00+09:00"
+    times = [x["display_at"] for x in body["upcoming"]]
+    assert len(times) == 2 and all(t >= "2026-09-14T09:00:00+09:00" for t in times)
+    assert times[0] < "2026-09-14T09:30:00+09:00"  # 첫 행은 09:00 직후 방문이다 (첫차로 되돌아가지 않는다)
+    assert body["attention"] == []
+
+
+def test_fr_bc_30_earlier_time_today_means_now(client, set_now):
+    set_now(2026, 9, 14, 8, 10)
+    plain = upcoming(client, "아산캠퍼스")
+    body = upcoming(client, "아산캠퍼스", depart_after="07:00")
+    assert body["depart_after_applied"] == "2026-09-14T08:10:00+09:00"
+    body.pop("depart_after_applied"), plain.pop("depart_after_applied")
+    assert body == plain  # 지난 시각은 지금 — 결과가 조건 없는 요청과 같다 (attention 포함)
+    assert any(r["reason"] == "prediction_expired" for r in body["attention"])
+
+
+def test_fr_bc_31_later_time_today_drops_current_situation(client, set_now):
+    set_now(2026, 9, 14, 8, 10)
+    assert upcoming(client, "아산캠퍼스")["attention"]  # 지금은 확인 항목이 있다
+    body = upcoming(client, "아산캠퍼스", depart_after="12:00")
+    assert body["attention"] == []  # 12:00의 상황이 아니다
+    assert body["upcoming"] and all(x["display_at"] >= "2026-09-14T12:00:00+09:00" for x in body["upcoming"])
+    assert all(x["display_at"] is None or x["display_at"] >= "2026-09-14T12:00:00+09:00" for x in body["reference_timetable"])
+
+
+def test_fr_bc_32_depart_after_format(client, set_now):
+    set_now(2026, 9, 14, 7, 0)
+    for bad in ("9시", "25:00", "09:00+09:00"):
+        assert upcoming(client, "아산캠퍼스", expect=422, depart_after=bad)["error"]["code"] == "VALIDATION_ERROR"

@@ -87,7 +87,9 @@ group 0은 신선한 arrived이며 sort_at은 해당 도착 관측 시각, group
 
 기본 경로 /api/v1. `GET /scheduled-trips`는 route_id, service_date 필수다. origin_stop_id와 destination_stop_id를 둘 다 주면 후보 응답, 둘 다 생략하면 선택 노선의 날짜별 회차 목록이다. 하나만 보내면 422다. 후자의 응답은 trips[]이며 candidates[]와 혼용하지 않는다. 오래된 stop_id·direction 단일 정거장 검색 모드는 사용하지 않는다.
 
-후보 응답: schedule_status, schedule_reason, server_time, candidates[], unverified_candidates[], recommended_candidate, refresh_after_seconds, no_candidate_reason(nullable), next_known_service_date, has_unknown_dates_before.
+후보 모드는 선택 조건 `depart_after`(서울 시각 HH:MM)를 받는다 — 규칙은 11장 '출발 시각 조건'과 같고 후보에는 이렇게 적용한다: 기준 시각이 지금보다 뒤면 `candidates[]`는 `sort_at`이 기준 시각 이상인 것만, `unverified_candidates[]`는 `sort_at`이 null이거나 기준 시각 이상인 것만 남긴다. 신선한 도착(group 0)은 `sort_at`이 과거라 자연히 빠진다. 추천·`no_candidate_reason`은 남은 목록으로 정한다. 회차 목록 모드(출발·도착 생략)는 하루 전체라 이 조건을 받지 않는다 — 보내면 422.
+
+후보 응답: schedule_status, schedule_reason, server_time, candidates[], unverified_candidates[], recommended_candidate, refresh_after_seconds, no_candidate_reason(nullable), next_known_service_date, has_unknown_dates_before, depart_after_applied(nullable).
 
 | 후보 필드 | 의미 |
 |---|---|
@@ -176,7 +178,7 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 
 출발·도착을 모두 고르기 전에 **정거장 하나를 눌러 다음 버스를 보는** 화면용이다 (`md_frontend/02`). 2~4장의 탑승 후보와 역할이 다르다 — 승차 가능을 보장하는 추천이 아니라 **방문 예정 정보**다. 하차 전용이거나 승차 정책 미확인인 방문에는 안내를 붙이되 숨기지 않는다.
 
-`GET /stops/{stop_id}/upcoming?route_id&service_date`. 인증 없음.
+`GET /stops/{stop_id}/upcoming?route_id&service_date[&depart_after]`. 인증 없음.
 
 ### 방향을 합친다
 
@@ -196,6 +198,21 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 
 `display_basis = scheduled_departure`와 `timetable`은 화면에서 둘 다 "시간표 기준"이다. 구분을 남기는 이유는 전자가 03의 예측 경로를 지났고 후자는 지나지 않았기 때문이다.
 
+### 출발 시각 조건 (2026-09-30)
+
+화면의 '지금 출발' 칩([계획](PLAN-departure-time.md))이 고른 시각이다. **출발 기준만** 둔다 — 도착 기준은 교통 상황 예측이 필요해 두지 않는다.
+
+| 항목 | 규칙 |
+|---|---|
+| 요청 | `depart_after=HH:MM` (서울 시각, 선택). 시간대를 붙이면 `VALIDATION_ERROR` |
+| 기준 시각 | `service_date`와 합친 서울 시각. 오늘이고 지금보다 이르면 **지금**으로 본다 — 오류가 아니다(기기 시계 차이) |
+| 조건 없음 · 기준 = 지금 | 이 장의 규칙 그대로. 결과가 조건 없는 요청과 같다 |
+| 기준 > 지금 | `upcoming`은 `display_at ≥ 기준`인 것 중 가까운 2개. `attention`은 싣지 않는다 — 그 시각의 상황이 아니다. `reference_timetable`은 `display_at`이 null이거나 기준 이상인 것만 |
+| 상태 판정 | 방문 상태·예측은 언제나 **지금** 기준으로 계산한다. 기준 시각은 거르기만 한다 — 미래 상황을 지어내지 않는다 |
+| 응답 | `depart_after_applied` — 서버가 실제로 쓴 기준 시각(서울). 조건이 없으면 null |
+
+자정을 넘는 운행이 없으므로(07:30~22:30) 기준 시각이 날짜를 넘는 경우는 다루지 않는다 (`md_frontend/02`).
+
 ### 제외와 정렬
 
 완료·취소 차량, 이미 `departed`·`passed`·`passed_inferred`인 방문은 어느 목록에도 넣지 않는다. 예상 시각이 지났다는 이유만으로 통과로 만들지 않는다 — 그건 4번 규칙대로 확인 항목이다.
@@ -204,7 +221,7 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 
 ### 응답
 
-`stop_id, stop_name, route_id, service_date, schedule_status, schedule_reason, server_time, refresh_after_seconds, upcoming[], attention[], reference_timetable[], empty_reason`.
+`stop_id, stop_name, route_id, service_date, schedule_status, schedule_reason, server_time, refresh_after_seconds, upcoming[], attention[], reference_timetable[], empty_reason, depart_after_applied`.
 
 | 항목 필드 | 의미 |
 |---|---|
@@ -228,7 +245,7 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 | unconfirmed_remaining | 정상 미래 항목은 없지만 확인 항목·참고 시간표가 남아 있음. **"모든 버스 종료"라고 쓰지 않는다** |
 | no_remaining_service | 세 목록 모두 비었음 |
 
-미래 날짜는 현재 시각의 시·분을 복사해 거르지 않으므로 그 날의 첫 방문부터 나온다. 갱신 주기는 5장의 `refresh_after_seconds`를 그대로 쓴다.
+미래 날짜는 현재 시각의 시·분을 복사해 거르지 않으므로 조건이 없으면 그 날의 첫 방문부터 나온다. 원하는 시간대는 `depart_after`로 고른다. 갱신 주기는 5장의 `refresh_after_seconds`를 그대로 쓴다.
 
 ### 검증 기준
 
@@ -240,3 +257,7 @@ selectedCandidate는 위 4개 식별자를 가진다. 슬롯 2개면 독립 후�
 | FR-BC-26 | 08:10 조회, 순1 캠퍼스 출발 관측 없음 | upcoming에 없고 attention에 prediction_expired 08:05 |
 | FR-BC-27 | 천안아산역 arrived 관측 1분 전 | attention arrived_confirmed·observed_event·관측 시각. 같은 방문이 upcoming에 없음. 16분 뒤 arrival_observation_stale |
 | FR-BC-28 | 빈 결과 | 노선 밖 정거장 stop_not_on_route, 지난 날짜 past_date, 토요일 온양 schedule_unavailable, 밤늦게 no_remaining_service 또는 unconfirmed_remaining |
+| FR-BC-29 | 미래 날짜 캠퍼스, `depart_after=09:00` | upcoming의 모든 display_at ≥ 09:00, 첫 행은 09:00 이후 가장 가까운 방문. 조건 없으면 첫 방문부터. `depart_after_applied` = 그날 09:00 |
+| FR-BC-30 | 오늘 08:10 조회, `depart_after=07:00` | 기준은 지금(08:10). 결과는 조건 없는 요청과 같고 attention도 그대로 |
+| FR-BC-31 | 오늘 08:10 조회, `depart_after=12:00` | attention 없음, upcoming은 12:00 이후. 후보 검색도 sort_at ≥ 12:00만, 신선한 도착 후보 없음 |
+| FR-BC-32 | `depart_after=9시`·`09:00+09:00` | VALIDATION_ERROR |

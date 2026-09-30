@@ -1,7 +1,7 @@
 """정거장 단독 조회 — 가까운 예정 방문 (11 11장). 학생 조회, 인증 없음."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 from app.candidates.upcoming import find_stop_upcoming
 from app.clock import get_now
 from app.db import get_session
-from app.errors import check_service_date, not_found
+from app.errors import check_depart_after, check_service_date, not_found
 from app.models.reference import Route, Stop
 from app.state.schemas import StopOut, VisitOut
-from app.timeutil import SEOUL
+from app.timeutil import SEOUL, depart_cutoff, to_seoul
 
 router = APIRouter(prefix="/api/v1")
 
@@ -63,6 +63,8 @@ class StopUpcomingOut(BaseModel):
     reference_timetable: list[UpcomingItemOut]
     # schedule_unavailable / past_date / stop_not_on_route / unconfirmed_remaining / no_remaining_service / null
     empty_reason: str | None
+    # 서버가 실제로 쓴 출발 시각 조건 (오늘의 지난 시각은 지금으로). 조건이 없으면 null (11 11장)
+    depart_after_applied: datetime | None = None
 
 
 @router.get(
@@ -76,6 +78,7 @@ def get_stop_upcoming(
     stop_id: uuid.UUID,
     route_id: uuid.UUID,
     service_date: date,
+    depart_after: time | None = None,
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
 ):
@@ -85,7 +88,9 @@ def get_stop_upcoming(
     if session.get(Route, route_id) is None:
         raise not_found("노선")
     check_service_date(service_date)
-    result = find_stop_upcoming(session, route_id, service_date, stop_id, now)
+    check_depart_after(depart_after)
+    cutoff = depart_cutoff(service_date, depart_after, now)
+    result = find_stop_upcoming(session, route_id, service_date, stop_id, now, cutoff=cutoff)
     session.commit()
     return StopUpcomingOut(
         stop_id=stop.stop_id,
@@ -100,4 +105,5 @@ def get_stop_upcoming(
         attention=result.attention,
         reference_timetable=result.reference_timetable,
         empty_reason=result.empty_reason,
+        depart_after_applied=to_seoul(cutoff),
     )

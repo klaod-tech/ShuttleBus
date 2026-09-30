@@ -3339,10 +3339,10 @@
       "stage": "p2",
       "source": "md/PLAN-departure-time.md",
       "body": "미래 날짜에서 첫차 2개만 보이는 빈틈을 출발 시각 선택으로. 정거장 조회·후보 검색에 depart_after=HH:MM, 응답 depart_after_applied. 계획 md/PLAN-departure-time.md. 승인 대기.",
-      "status": "blocked",
+      "status": "completed",
       "agent": "klaod-tech_CL",
-      "result": "사용자 결정(2026-09-30): 도착 기준 없음, 출발 기준만 — 교통 상황을 감안하지 않아도 되고 부담이 적다. 남은 승인: 계획 4장 1(depart_after 계약)",
-      "updated": "2026-09-30T03:33:16.917740+00:00",
+      "result": "서버 구현 완료. 화면은 외부 담당(md_frontend/01 '지금 출발' 칩)",
+      "updated": "2026-09-30T03:44:59.661384+00:00",
       "log": [
         {
           "at": "2026-09-30T03:30:18.931048+00:00",
@@ -3361,6 +3361,18 @@
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "사용자 결정(2026-09-30): 도착 기준 없음, 출발 기준만 — 교통 상황을 감안하지 않아도 되고 부담이 적다. 남은 승인: 계획 4장 1(depart_after 계약)"
+        },
+        {
+          "at": "2026-09-30T03:34:24.541728+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "사용자 승인(2026-09-30): depart_after 계약으로 구현 착수"
+        },
+        {
+          "at": "2026-09-30T03:44:59.661384+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "서버 구현 완료. 화면은 외부 담당(md_frontend/01 '지금 출발' 칩)"
         }
       ],
       "priority": 2,
@@ -3370,7 +3382,7 @@
       "number": "SB-0107",
       "order": 1070,
       "priorityNote": "",
-      "evidence": "",
+      "evidence": "md/11 11장 '출발 시각 조건'·7장, FR-BC-29~32. api: timeutil.depart_cutoff, errors.check_depart_after, find_stop_upcoming·find_boarding_candidates의 cutoff, 두 응답에 depart_after_applied. 시험 6개(test_stop_upcoming 4, test_candidates 2). 서버 pytest 228 passed, web npm run typecheck 통과",
       "performedBy": ""
     }
   ],

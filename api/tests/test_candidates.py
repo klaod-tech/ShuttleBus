@@ -13,7 +13,7 @@ MON = "2026-09-14"
 NOW = datetime(2026, 9, 14, 12, 0, tzinfo=SEOUL)
 
 
-def search(client, origin, destination, route="cheonan_asan", day=MON):
+def search(client, origin, destination, route="cheonan_asan", day=MON, **extra):
     res = client.get(
         "/api/v1/scheduled-trips",
         params={
@@ -21,6 +21,7 @@ def search(client, origin, destination, route="cheonan_asan", day=MON):
             "service_date": day,
             "origin_stop_id": str(stop_id(origin)),
             "destination_stop_id": str(stop_id(destination)),
+            **extra,
         },
     )
     assert res.status_code == 200, res.text
@@ -269,3 +270,26 @@ def test_fr_bc_22_contrary_evidence_blocks_future_published():
 def test_past_published_time_is_reference_only():
     r = classify(base_input(scheduled_departure_at=NOW - timedelta(minutes=1)), NOW)
     assert (r.kind, r.reasons) == ("unverified", ("scheduled_time_passed",))
+
+
+# ---------- 출발 시각 조건 (11 7장, 2026-09-30) ----------
+
+
+def test_fr_bc_31_candidates_after_depart_time(client, set_now):
+    set_now(2026, 9, 14, 7, 0)
+    plain = search(client, "아산캠퍼스", "천안아산역")
+    body = search(client, "아산캠퍼스", "천안아산역", depart_after="12:00")
+    assert body["depart_after_applied"] == "2026-09-14T12:00:00+09:00" and plain["depart_after_applied"] is None
+    assert body["candidates"] and all(c["sort_at"] >= "2026-09-14T12:00:00+09:00" for c in body["candidates"])
+    assert all(c["sort_at"] is None or c["sort_at"] >= "2026-09-14T12:00:00+09:00" for c in body["unverified_candidates"])
+    first = body["candidates"][0]
+    assert body["recommended_candidate"]["trip_vehicle_id"] == first["trip_vehicle_id"]
+    # 걸러진 목록은 조건 없는 목록의 12:00 이후 부분과 같은 순서다
+    later = [c["boarding_trip_stop_id"] for c in plain["candidates"] if c["sort_at"] >= "2026-09-14T12:00:00+09:00"]
+    assert [c["boarding_trip_stop_id"] for c in body["candidates"]] == later
+
+
+def test_fr_bc_32_depart_after_not_for_trip_list(client, set_now):
+    set_now(2026, 9, 14, 7, 0)
+    res = client.get("/api/v1/scheduled-trips", params={"route_id": str(route_id("cheonan_asan")), "service_date": MON, "depart_after": "12:00"})
+    assert res.status_code == 422 and res.json()["error"]["code"] == "VALIDATION_ERROR"

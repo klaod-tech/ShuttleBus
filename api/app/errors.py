@@ -36,6 +36,12 @@ def check_service_date(*dates: date) -> None:
             raise invalid(f"운행 날짜는 {MIN_SERVICE_DATE}~{MAX_SERVICE_DATE} 범위여야 합니다.")
 
 
+def check_depart_after(t) -> None:
+    """출발 시각 조건은 서울 시각 HH:MM이다 (11 11장). 시간대를 붙이면 뜻이 둘이 되므로 거절한다."""
+    if t is not None and t.tzinfo is not None:
+        raise invalid("depart_after는 시간대 없는 서울 시각 HH:MM이어야 합니다.")
+
+
 def envelope(status: int, code: str, message: str, retryable: bool = False) -> JSONResponse:
     return JSONResponse(
         status_code=status,

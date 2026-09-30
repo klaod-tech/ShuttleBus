@@ -60,6 +60,7 @@ def find_boarding_candidates(
     origin_stop_id: uuid.UUID,
     destination_stop_id: uuid.UUID,
     now: datetime,
+    cutoff: datetime | None = None,
 ) -> CandidateResult:
     calendar = resolve_service_calendar(session, route_id, service_date)
     if calendar.schedule_status != "available":
@@ -133,6 +134,11 @@ def find_boarding_candidates(
                     "tracked_vehicle_count": tracked,
                 }
                 (candidates if result.kind == "candidate" else unverified).append(item)
+
+    if cutoff is not None and cutoff > now:
+        # 출발 시각 조건 (11 7장). 신선한 도착(group 0)은 sort_at이 과거라 자연히 빠진다
+        candidates = [c for c in candidates if c["sort_at"] is not None and c["sort_at"] >= cutoff]
+        unverified = [u for u in unverified if u["sort_at"] is None or u["sort_at"] >= cutoff]
 
     candidates.sort(key=candidate_sort_key)
     unverified.sort(key=unverified_sort_key)

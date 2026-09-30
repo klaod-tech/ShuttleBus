@@ -96,7 +96,7 @@ def _sort_key(item: dict) -> tuple:
 
 def find_stop_upcoming(
     session: Session, route_id: uuid.UUID, service_date: date, stop_id: uuid.UUID, now: datetime,
-    *, freshness_seconds: int | None = None, limit: int = UPCOMING_LIMIT,
+    *, freshness_seconds: int | None = None, limit: int = UPCOMING_LIMIT, cutoff: datetime | None = None,
 ) -> UpcomingResult:
     freshness_seconds = settings.arrived_freshness_seconds if freshness_seconds is None else freshness_seconds
     calendar = resolve_service_calendar(session, route_id, service_date)
@@ -173,6 +173,13 @@ def find_stop_upcoming(
                     reference.append(make(display_at=ts.scheduled_unspecified_at, display_event_type=None, display_basis="timetable", reason="scheduled_event_type_unspecified"))
                 else:
                     reference.append(make(display_at=None, display_event_type=None, display_basis=None, reason="no_scheduled_time"))
+
+    if cutoff is not None and cutoff > now:
+        # 출발 시각 조건 (11 11장). 상태는 지금 기준으로 계산했고 여기서는 거르기만 한다.
+        # 지금 상황(도착 확인·통과 확인 중)은 그 시각의 상황이 아니므로 싣지 않는다
+        upcoming = [x for x in upcoming if x["display_at"] >= cutoff]
+        attention = []
+        reference = [x for x in reference if x["display_at"] is None or x["display_at"] >= cutoff]
 
     upcoming.sort(key=_sort_key)
     attention.sort(key=_sort_key)
