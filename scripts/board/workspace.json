@@ -239,20 +239,20 @@
       "title": "정상 실행에서 회차 보충 작업이 날짜별 회차를 만드는지 확인",
       "stage": "operations",
       "category": "서버",
-      "status": "planned",
+      "status": "completed",
       "source": "md/REVIEW-2026-09-21.md",
       "ref": "REVIEW-2026-09-21 다음 준비 3",
       "body": "진단 실행에서는 보충 작업을 꺼 두었다. 정상 실행에서 ensure_upcoming_trips 결과를 확인한다.",
-      "evidence": "",
+      "evidence": "2026-09-30 서버.cmd start -NoWeb로 API만 기동(학생 조회 없이 /healthz만 호출). 기동 전 DB 회차는 2026-10-13까지(09-29 기동분), 기동 후 2026-10-14 회차 120개 생성 — background_workers의 '회차 보충' 루프가 오늘+14일을 채움. 빠진 날짜 10-03·04·09는 무운행일",
       "priority": 1,
       "size": 1,
       "order": 2070,
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "확인 완료",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T11:16:29.454336+00:00",
+      "updated": "2026-09-30T02:38:57.286657+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
@@ -265,6 +265,18 @@
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "P1은 ROADMAP상 완료. 현장 확인·운영 점검 6장이 P1 진행도를 1/7로 보이게 해 상시 운영으로 옮김 (SB-0100)"
+        },
+        {
+          "at": "2026-09-30T02:36:22.007952+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "착수: 서버.cmd 정상 실행 기준으로 회차 보충 결과 확인"
+        },
+        {
+          "at": "2026-09-30T02:38:57.286657+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "확인 완료"
         }
       ]
     },
@@ -2268,26 +2280,32 @@
       "title": "GPX 파일 사전 점검 (DB 쓰기 전 버전·누락 필드·시각 순서·중복·공백 요약)",
       "stage": "p6",
       "category": "서버",
-      "status": "planned",
+      "status": "completed",
       "source": "md/IMPROVEMENTS.md",
       "ref": "IMPROVEMENTS GPS 후속 1",
       "body": "합성 비식별 사례로 직접 speed·없는 accuracy·기록 전 주석 시험. 누락값을 0 정확도로 만들지 않고 1.0/1.1 모두 읽힘. 시험 차량 파일을 노선 경로로 등록하지 않는다. (GPX 1.0 회귀 시험 부분은 완료 카드로 따로 있다.)",
-      "evidence": "",
+      "evidence": "api/app/survey.py inspect_gpx·inspect 명령. 시험 3개(합성 GPS Logger 1.0 파일: speed 직계·accuracy 없음을 0이 아닌 '없음'으로, 녹화 전 주석, 공백·튀는 점·같은 시각·거꾸로 간 시각 / 깨끗한 GPX 1.1 accuracy 경고 없음 / CLI가 DB를 열지 않음). 서버 pytest 222 passed. 합성 파일·깨진 파일에 CLI 실제 실행",
       "priority": 2,
       "size": 2,
       "order": 7190,
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "app.survey inspect 구현",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-30T02:43:56.461088+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-30T02:43:56.461088+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "app.survey inspect 구현"
         }
       ]
     },

@@ -4,6 +4,7 @@
 
 실행
   python -m app.survey gpx-demo --pattern cheonan_asan/general --out demo.gpx   가짜 트랙 (시험 전용)
+  python -m app.survey inspect --file x.gpx     적재 전 점검. DB를 쓰지 않는다
   python -m app.survey import --file x.gpx --pattern cheonan_asan/general [--label 폰이름] [--note ...]
   python -m app.survey build-path --track <survey_track_id> [--tolerance 5] [--max-speed 40]
   python -m app.survey verify --track <survey_track_id> [--max-deviation 30]   두 번째 트랙으로 구간 검증
@@ -189,6 +190,106 @@ def parse_gpx(data: bytes) -> ParsedGpx:
                 GpxWaypoint(float(el.get("lat")), float(el.get("lon")), _parse_time(_find_text(el, "time")), _find_text(el, "name") or "")
             )
     return parsed
+
+
+@dataclass
+class InspectReport:
+    """적재 전 GPX 요약 (IMPROVEMENTS GPS 후속 1). 없는 값은 None으로 두고 0으로 채우지 않는다."""
+
+    version: str | None
+    creator: str | None
+    points: int
+    segments: int
+    time_missing: int
+    first_time: datetime | None
+    last_time: datetime | None
+    median_interval_s: float | None
+    backwards: int  # 앞 점보다 이른 시각
+    duplicate_times: int  # 앞 점과 같은 시각
+    gaps: list[tuple[int, float, float]]  # (앞 점 번호, 초, 직선거리 m) — find_gaps와 같은 모양
+    jumps: int  # 앞 점에서 max_speed보다 빨리 움직인 점 (튀는 좌표)
+    out_of_range: int  # 남한 범위 밖 좌표
+    field_counts: dict[str, int]  # 값이 있는 점의 수. 없으면 그 필드는 파일에 없다
+    waypoints: int
+    waypoints_before: int  # 녹화 시작 전 시각의 주석
+    waypoints_after: int
+    waypoints_no_time: int
+    warnings: list[str] = field(default_factory=list)
+
+
+def inspect_gpx(data: bytes, *, max_gap_seconds: float = MAX_GAP_SECONDS, max_speed_mps: float = DEFAULT_MAX_SPEED_MPS) -> InspectReport:
+    """DB에 쓰기 전에 파일을 요약한다. 판단은 사람이 한다 — 여기서는 고치거나 버리지 않는다."""
+    from app.stops import check_coordinates  # 순환 참조 없이 좌표 범위 규칙을 하나로 둔다
+
+    parsed = parse_gpx(data)
+    pts = parsed.points
+    segments = sum(1 for el in ET.fromstring(data).iter() if _localname(el.tag) == "trkseg")
+    timed = [(i, p) for i, p in enumerate(pts) if p.time is not None]
+    intervals, backwards, duplicates, gaps, jumps = [], 0, 0, [], 0
+    # 거꾸로 간 점은 기준으로 삼지 않는다 — 그 뒤 점과의 차이가 가짜 공백으로 잡히지 않게
+    prev = timed[0] if timed else None
+    for j, b in timed[1:]:
+        i, a = prev
+        seconds = (b.time - a.time).total_seconds()
+        distance = haversine_m(a.lat, a.lng, b.lat, b.lng)
+        if seconds < 0:
+            backwards += 1
+            continue
+        prev = (j, b)
+        if seconds == 0:
+            duplicates += 1
+            continue
+        intervals.append(seconds)
+        if seconds > max_gap_seconds:
+            gaps.append((i, seconds, distance))
+        elif distance / seconds > max_speed_mps:
+            jumps += 1
+    intervals.sort()
+    first = min((p.time for _, p in timed), default=None)
+    last = max((p.time for _, p in timed), default=None)
+    fields = {name: sum(1 for p in pts if getattr(p, name) is not None) for name in ("ele", "speed", "bearing", "sat", "hdop", "accuracy")}
+    wpt_times = [w.time for w in parsed.waypoints]
+    report = InspectReport(
+        version=parsed.version,
+        creator=parsed.creator,
+        points=len(pts),
+        segments=segments,
+        time_missing=len(pts) - len(timed),
+        first_time=first,
+        last_time=last,
+        median_interval_s=intervals[len(intervals) // 2] if intervals else None,
+        backwards=backwards,
+        duplicate_times=duplicates,
+        gaps=gaps,
+        jumps=jumps,
+        out_of_range=sum(1 for p in pts if check_coordinates(p.lat, p.lng)),
+        field_counts=fields,
+        waypoints=len(parsed.waypoints),
+        waypoints_before=sum(1 for t in wpt_times if t and first and t < first),
+        waypoints_after=sum(1 for t in wpt_times if t and last and t > last),
+        waypoints_no_time=sum(1 for t in wpt_times if t is None),
+    )
+    w = report.warnings
+    if report.points < 2:
+        w.append("점이 2개 미만이다. 경로를 만들 수 없다")
+    if report.time_missing:
+        w.append(f"시각 없는 점 {report.time_missing}개 — 공백·속도 판정과 두 번째 트랙 검증에서 쓸 수 없다")
+    if report.backwards:
+        w.append(f"시각이 거꾸로 가는 곳 {report.backwards}곳 — 파일을 이어 붙였거나 기기 시계가 바뀌었다")
+    if report.gaps:
+        longest = max(g[1] for g in report.gaps)
+        w.append(f"수신 공백 {len(report.gaps)}곳(가장 긴 곳 {longest:.0f}초) — build-path가 가장 긴 조각만 쓴다 (PLAN-route-data '수신 공백이 났을 때')")
+    if report.segments > 1:
+        w.append(f"trkseg {report.segments}개 — 녹화를 멈췄다 다시 시작한 흔적일 수 있다")
+    if report.jumps:
+        w.append(f"튀는 좌표 {report.jumps}개 (초속 {max_speed_mps:.0f}m 초과) — build-path가 이상치로 뺀다")
+    if report.out_of_range:
+        w.append(f"남한 범위 밖 좌표 {report.out_of_range}개 — 위경도가 뒤집혔는지 본다")
+    if report.points and not fields["accuracy"] and not fields["hdop"]:
+        w.append("정확도(accuracy·hdop)가 없다 — 없는 채로 둔다. 0으로 채우지 않는다")
+    if report.waypoints_before or report.waypoints_after:
+        w.append(f"녹화 시간 밖 주석 {report.waypoints_before + report.waypoints_after}개 — 좌표로만 정거장에 붙는다")
+    return report
 
 
 def generate_demo_gpx(stops: list[tuple[str, float, float]], start: datetime, *, interval_s: int = 3, speed_mps: float = 8.0, dwell_s: int = 30, jitter_m: float = 2.0) -> str:
@@ -669,6 +770,38 @@ def _pattern_label(session: Session, rv_id: uuid.UUID | None) -> str:
     return f"{pattern.pattern_code}@{rv.version_no}"
 
 
+def _print_inspect(path: str) -> None:
+    with open(path, "rb") as f:
+        data = f.read()
+    try:
+        r = inspect_gpx(data)
+    except ET.ParseError as e:
+        raise SystemExit(f"GPX로 읽을 수 없다: {e}")
+    from app.timeutil import to_seoul
+
+    span = (
+        f"{to_seoul(r.first_time):%Y-%m-%d %H:%M:%S} ~ {to_seoul(r.last_time):%H:%M:%S} 서울 ({(r.last_time - r.first_time).total_seconds() / 60:.1f}분)"
+        if r.first_time and r.last_time
+        else "시각 없음"
+    )
+    print(f"GPX {r.version or '?'} · {r.creator or '만든 앱 모름'}")
+    print(f"점 {r.points}개 · trkseg {r.segments}개 · {span}")
+    print(f"기록 간격 중앙값 {r.median_interval_s:.1f}초" if r.median_interval_s is not None else "기록 간격: 계산할 수 없음")
+    present = ", ".join(f"{k} {v}" for k, v in r.field_counts.items() if v) or "없음"
+    missing = ", ".join(k for k, v in r.field_counts.items() if not v) or "없음"
+    print(f"값이 있는 필드: {present}")
+    print(f"파일에 없는 필드: {missing}")
+    print(f"주석 {r.waypoints}개 (녹화 전 {r.waypoints_before} · 후 {r.waypoints_after} · 시각 없음 {r.waypoints_no_time})")
+    print(f"같은 시각 {r.duplicate_times}곳 · 거꾸로 {r.backwards}곳 · 공백 {len(r.gaps)}곳 · 튀는 좌표 {r.jumps}개 · 범위 밖 {r.out_of_range}개")
+    for seq, seconds, meters in r.gaps:
+        print(f"  공백: {seq + 1}번째 점 뒤 {seconds:.0f}초, 직선 {meters:.0f}m")
+    for line in r.warnings:
+        print(f"주의: {line}")
+    if not r.warnings:
+        print("주의할 것 없음")
+    print("DB에는 아무것도 쓰지 않았다. 적재는 import")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.survey")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -676,6 +809,8 @@ def main() -> None:
     demo.add_argument("--pattern", required=True, help="route/code, 예: cheonan_asan/general")
     demo.add_argument("--out", required=True)
     demo.add_argument("--version", type=int, default=1)
+    ins = sub.add_parser("inspect", help="적재 전 파일 점검 (DB를 쓰지 않는다)")
+    ins.add_argument("--file", required=True)
     imp = sub.add_parser("import", help="GPX 적재 (해시로 멱등)")
     imp.add_argument("--file", required=True)
     imp.add_argument("--pattern", required=True)
@@ -691,6 +826,10 @@ def main() -> None:
     ver.add_argument("--max-deviation", type=float, default=DEFAULT_MAX_DEVIATION_M)
     sub.add_parser("list", help="트랙과 경로 상태")
     args = parser.parse_args()
+
+    if args.command == "inspect":
+        _print_inspect(args.file)
+        return
 
     with SessionLocal() as session:
         if args.command == "gpx-demo":

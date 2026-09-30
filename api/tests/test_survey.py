@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from app.models.reference import RoutePathPoint, RouteStop, RouteStopSegment, Stop, SurveyAnnotation, SurveyPathBuild, SurveyTrack, SurveyTrackPoint
 from app.seed import route_id, stop_id, version_id
 from app.stops import set_location
-from app.survey import build_path, douglas_peucker, generate_demo_gpx, import_gpx, parse_gpx, verify_path
+from app.survey import build_path, douglas_peucker, generate_demo_gpx, import_gpx, inspect_gpx, parse_gpx, verify_path
 
 # 시험용 임시 좌표 (samples/stops-provisional.json 과 같은 성격 — 실제 승차 위치가 아니다)
 COORDS = {
@@ -362,3 +362,50 @@ def test_annotation_name_pointing_at_another_stop_is_not_attached(db):
     report = build_path(db, track)
     assert report.annotations_resolved == 0
     assert db.scalar(select(SurveyAnnotation).where(SurveyAnnotation.survey_track_id == track.survey_track_id)).verification_status == "needs_interpretation"
+
+
+# ---------- 적재 전 점검 (IMPROVEMENTS GPS 후속 1, SB-0077) ----------
+
+
+def test_inspect_reports_logger_file_problems_without_filling_values():
+    """GPS Logger 형식 + 공백·튀는 점·같은 시각·거꾸로 간 시각. 없는 정확도는 0이 아니라 '없음'이다."""
+    pts = _ride(gap_after=30)
+    pts[10] = (36.95, 127.30, pts[10][2], 11.0)  # 1초 만에 수십 km — 튀는 좌표
+    pts.insert(20, pts[19])  # 같은 시각이 한 번 더
+    pts.insert(40, (pts[39][0], pts[39][1], _second(5), 11.0))  # 앞보다 이른 시각
+    r = inspect_gpx(_gpx10(pts))
+    assert r.version == "1.0" and r.segments == 1 and r.points == len(pts)
+    assert r.field_counts["accuracy"] == 0 and r.field_counts["hdop"] == 0
+    assert r.field_counts["speed"] == len(pts)
+    assert len(r.gaps) == 1 and r.gaps[0][1] == 301
+    assert r.jumps >= 1 and r.duplicate_times == 1 and r.backwards == 1
+    assert r.waypoints == 1 and r.waypoints_before == 1  # 녹화 전에 남긴 주석
+    assert r.median_interval_s == 1.0
+    text = " ".join(r.warnings)
+    assert "수신 공백" in text and "0으로 채우지 않는다" in text and "녹화 시간 밖 주석" in text and "거꾸로" in text
+
+
+def test_inspect_clean_gpx11_with_accuracy_has_no_warnings():
+    out = ['<?xml version="1.0"?>', '<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>']
+    for i in range(20):
+        out.append(f'<trkpt lat="{36.7998 + i * 0.00005:.6f}" lon="127.0745"><time>{_second(i)}</time>'
+                   f"<extensions><accuracy>4.0</accuracy></extensions></trkpt>")
+    out.append("</trkseg></trk></gpx>")
+    r = inspect_gpx(chr(10).join(out).encode())
+    assert r.version == "1.1" and r.field_counts["accuracy"] == 20 and r.field_counts["speed"] == 0
+    assert r.gaps == [] and r.jumps == 0 and r.out_of_range == 0 and r.warnings == []
+
+
+def test_inspect_cli_writes_nothing(tmp_path, capsys, monkeypatch):
+    """점검은 DB를 열지 않는다 — 시험 차량 파일을 노선 경로로 잘못 올리는 일을 점검 단계에서 만들지 않는다."""
+    import sys
+
+    import app.survey as survey
+
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(_gpx10(_ride()))
+    monkeypatch.setattr(survey, "SessionLocal", lambda: (_ for _ in ()).throw(AssertionError("DB를 열었다")))
+    monkeypatch.setattr(sys, "argv", ["app.survey", "inspect", "--file", str(path)])
+    survey.main()
+    out = capsys.readouterr().out
+    assert "GPX 1.0" in out and "파일에 없는 필드: " in out and "DB에는 아무것도 쓰지 않았다" in out

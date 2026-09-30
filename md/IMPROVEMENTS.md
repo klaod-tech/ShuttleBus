@@ -154,6 +154,7 @@ detection_missed는 공개 방문 상태에서 제외했다. 학생 표시·수�
 
 ```powershell
 python -m app.stops import --file samples\stops-provisional.json     # ① 임시 좌표 (needs_interpretation). 현장값이 오면 set --status verified
+python -m app.survey inspect --file 2026-09-20_cheonan_asan_1.gpx   # 0단계 — 적재 전 점검. DB를 쓰지 않는다
 python -m app.survey import --file 2026-09-20_cheonan_asan_1.gpx --pattern cheonan_asan/general --label 폰   # 1단계
 python -m app.survey build-path --track <survey_track_id> --tolerance 5   # 2~7단계. unverified 로 만든다
 python -m app.survey verify --track <두_번째_트랙_id> --max-deviation 30   # 두 번째 탑승으로 구간 검증 → verified

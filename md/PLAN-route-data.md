@@ -36,6 +36,7 @@ IMPROVEMENTS '등록 절차' 7단계를 명령으로 만든다. 원본(⓪ 조�
 | 명령 | 하는 일 | 04·07 근거 |
 |---|---|---|
 | `gpx-demo --pattern cheonan_asan/general --out demo.gpx` | ①의 좌표를 이어 **가짜 트랙** 생성. 정거장마다 정차(속도 0) 구간, 좌표 흔들림, `<wpt>` 주석. 파일 이름에 `demo`가 박힌다 | 시험 전용. 진짜 자료가 오면 안 쓴다 |
+| `inspect --file x.gpx` | **적재 전 점검. DB를 열지 않는다.** 버전·만든 앱, 점·trkseg 수, 녹화 시간(서울), 기록 간격 중앙값, 값이 있는 필드와 파일에 없는 필드, 주석(녹화 전·후·시각 없음), 같은 시각·거꾸로 간 시각·수신 공백·튀는 좌표·범위 밖 좌표를 세고 주의할 점을 적는다. 없는 값은 없다고만 한다 — 정확도를 0으로 채우지 않는다. 고치거나 버리지 않는다 — 판단은 사람이 하고, 시험 차량 파일이면 적재하지 않는다 (SB-0077, 2026-09-30) | IMPROVEMENTS GPS 후속 1 |
 | `import --file x.gpx --pattern route/code` | GPX 1.0/1.1 파싱 → `survey_tracks`(파일 해시로 멱등)·`survey_track_points`·`survey_annotations`(`<wpt>`). `<extensions>`는 원문 그대로 `raw_extensions`에 | `04` 1장 조사 트랙 |
 | `build-path --track <id> [--tolerance 5]` | 이상치 제거(불가능 속도·튄 점) → Douglas-Peucker 단순화 → `route_path_points`(`recorded_track`) → 정거장 좌표에 가장 가까운 점으로 `route_stop_segments` 분할 (`unverified`) → 주석을 정차 구간과 대조해 `resolved_route_stop_id` | IMPROVEMENTS 2~7단계 |
 | `verify --track <id> [--max-deviation 30]` | 두 번째 트랙을 현재 경로와 구간별로 대조. 겹치면 `verified`, 어긋나면 `needs_interpretation` | IMPROVEMENTS '두 번째 트랙' |
@@ -148,7 +149,7 @@ cd api; $env:PYTHONUTF8='1'
 |---|---|---|
 | 1 | 이 계획 | SB-0059 |
 | 2 | ① `samples/stops-provisional.json` + `app.stops import` 덮어쓰기 보호 | SB-0060 |
-| 3 | ② `app/survey.py` — gpx-demo · import · build-path · verify · list | SB-0061. `build-path`가 출처를 `survey_path_builds`에 남기고, `verify`는 출처 트랙 ID로 자기검증·데모 경로·출처 미기록을 거절한다 (2026-09-22, 마이그레이션 0008) |
+| 3 | ② `app/survey.py` — gpx-demo · inspect · import · build-path · verify · list | SB-0061. `build-path`가 출처를 `survey_path_builds`에 남기고, `verify`는 출처 트랙 ID로 자기검증·데모 경로·출처 미기록을 거절한다 (2026-09-22, 마이그레이션 0008) |
 | 4 | ② `tests/test_survey.py` — 현재 정의 14개 (이번 실행 안 함) | SB-0062 |
 | 5 | ③ `GET /routes/{id}/path` + 시험 | SB-0063. 구간이 정거장 수−1보다 적으면 `partial` |
 | 6 | ③ `web/` 폴리라인 + `10` 5장 표 | SB-0064 |

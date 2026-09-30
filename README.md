@@ -60,6 +60,7 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m app.stops list                                    # 정거장 좌표·확인 상태
 .\.venv\Scripts\python.exe -m app.stops set --name 아산캠퍼스 --lat 36.7998 --lng 127.0745
 .\.venv\Scripts\python.exe -m app.stops import --file samples\stops-provisional.json --missing-only   # 현장 확인 전 임시 좌표 7개 (좌표 있는 곳은 건너뜀)
+.\.venv\Scripts\python.exe -m app.survey inspect --file ride.gpx          # 적재 전 점검 (DB를 쓰지 않는다)
 .\.venv\Scripts\python.exe -m app.survey gpx-demo --pattern cheonan_asan/general --out demo.gpx   # 가짜 트랙 (시험용)
 .\.venv\Scripts\python.exe -m app.survey import --file demo.gpx --pattern cheonan_asan/general --note demo
 .\.venv\Scripts\python.exe -m app.survey build-path --track <id>          # → 지도에 점선 경로
