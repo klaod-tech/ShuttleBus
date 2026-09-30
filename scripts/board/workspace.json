@@ -3341,8 +3341,8 @@
       "body": "미래 날짜에서 첫차 2개만 보이는 빈틈을 출발 시각 선택으로. 정거장 조회·후보 검색에 depart_after=HH:MM, 응답 depart_after_applied. 계획 md/PLAN-departure-time.md. 승인 대기.",
       "status": "blocked",
       "agent": "klaod-tech_CL",
-      "result": "API 계약 변경 — 계획 4장 두 가지 결정 대기 (CLAUDE.md 2장)",
-      "updated": "2026-09-30T03:30:19.620857+00:00",
+      "result": "사용자 결정(2026-09-30): 도착 기준 없음, 출발 기준만 — 교통 상황을 감안하지 않아도 되고 부담이 적다. 남은 승인: 계획 4장 1(depart_after 계약)",
+      "updated": "2026-09-30T03:33:16.917740+00:00",
       "log": [
         {
           "at": "2026-09-30T03:30:18.931048+00:00",
@@ -3355,6 +3355,12 @@
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "API 계약 변경 — 계획 4장 두 가지 결정 대기 (CLAUDE.md 2장)"
+        },
+        {
+          "at": "2026-09-30T03:33:16.917740+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "사용자 결정(2026-09-30): 도착 기준 없음, 출발 기준만 — 교통 상황을 감안하지 않아도 되고 부담이 적다. 남은 승인: 계획 4장 1(depart_after 계약)"
         }
       ],
       "priority": 2,
