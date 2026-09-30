@@ -2233,15 +2233,21 @@
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "녹화 때 함께 남길 것 목록: md/PLAN-gps-recovery.md 5장 (2회 이상 독립 녹화, 1초 간격·배터리 절약 끄기, 정거장 도착·출발 메모, 신호 끊긴 곳·우회 메모, 녹화 직후 app.survey inspect)",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-30T04:01:17.163908+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-30T04:01:17.163908+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "녹화 때 함께 남길 것 목록: md/PLAN-gps-recovery.md 5장 (2회 이상 독립 녹화, 1초 간격·배터리 절약 끄기, 정거장 도착·출발 메모, 신호 끊긴 곳·우회 메모, 녹화 직후 app.survey inspect)"
         }
       ]
     },
@@ -2410,7 +2416,7 @@
       "stage": "p6",
       "category": "서버",
       "status": "blocked",
-      "source": "md/IMPROVEMENTS.md",
+      "source": "md/PLAN-gps-recovery.md",
       "ref": "IMPROVEMENTS 1순위 적용 게이트·확인 후 반영할 문서",
       "body": "실제 경로·좌표 자료가 들어온 뒤 켠다: 지난 방문 자동 확정, 공백 구간 누락 방문 재판별, position_status 자동 복구, 복구 좌표를 예측 근거로. 보간 간격·복구 임계값·이탈 허용값은 자료 확보 전에 정하지 않는다. 문서 규칙 변경은 CLAUDE.md 2장 승인 대상.",
       "evidence": "",
@@ -2422,15 +2428,27 @@
       ],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "자료 전 준비 완료: md/PLAN-gps-recovery.md — 복구 6단계×방법×논문(P3 거르기, P5 보정; P2·P1 보류), 복원 조건 5개, 합성 공백 시험 지표(잘못 복원 0건), 녹화 때 남길 것, 승인받을 문서 목록. 계약·코드 변경 없음. 여전히 자료(SB-0075·0078·0079)와 P6 착수 승인 대기",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-30T04:01:16.560598+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-30T04:01:15.890384+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "준비 설계 문서 연결 (2026-09-30)"
+        },
+        {
+          "at": "2026-09-30T04:01:16.560598+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "자료 전 준비 완료: md/PLAN-gps-recovery.md — 복구 6단계×방법×논문(P3 거르기, P5 보정; P2·P1 보류), 복원 조건 5개, 합성 공백 시험 지표(잘못 복원 0건), 녹화 때 남길 것, 승인받을 문서 목록. 계약·코드 변경 없음. 여전히 자료(SB-0075·0078·0079)와 P6 착수 승인 대기"
         }
       ]
     },
