@@ -10,6 +10,7 @@ verification_status를 함께 기록한다 — verified / needs_interpretation /
   python -m app.stops import --file samples/stops-provisional.json   현장 확인 전 임시 좌표 (needs_interpretation)
 
 import는 이미 verified인 정거장을 덮지 않는다 (--overwrite-verified 로 강제). 현장 확인값이 임시값에 밀리지 않게.
+--missing-only는 좌표가 이미 있는 정거장을 모두 건너뛴다. 실행 파일(서버.cmd)이 켤 때마다 부르므로 손으로 넣은 값을 덮지 않는다.
 """
 
 import argparse
@@ -49,6 +50,28 @@ def set_location(
     return stop
 
 
+def import_locations(session, data: dict, overwrite_verified: bool = False, missing_only: bool = False) -> tuple[int, list[str]]:
+    """{"정거장 이름": {"lat", "lng", "status", "radius"}} 를 등록한다. '_'로 시작하는 키는 설명 칸.
+
+    verified 좌표는 overwrite_verified 없이는 덮지 않는다. missing_only면 좌표가 있는 정거장은 상태와 무관하게 건너뛴다.
+    반환: (등록 수, 건너뛴 정거장 이름들)
+    """
+    done, skipped = 0, []
+    for name, value in data.items():
+        if name.startswith("_"):
+            continue
+        stop = _stop_by_name(session, name)
+        has_location = stop.latitude is not None
+        if (missing_only and has_location) or (
+            stop.verification_status == "verified" and has_location and not overwrite_verified
+        ):
+            skipped.append(name)
+            continue
+        set_location(session, stop, float(value["lat"]), float(value["lng"]), value.get("status", "verified"), value.get("radius"))
+        done += 1
+    return done, skipped
+
+
 def _stop_by_name(session, name: str) -> Stop:
     stop = session.scalar(select(Stop).where(Stop.name == name))
     if stop is None:
@@ -69,6 +92,7 @@ def main() -> None:
     bulk = sub.add_parser("import", help="JSON 파일에서 여러 정거장 좌표 등록")
     bulk.add_argument("--file", required=True)
     bulk.add_argument("--overwrite-verified", action="store_true", help="verified 정거장도 덮어쓴다 (기본은 건너뜀)")
+    bulk.add_argument("--missing-only", action="store_true", help="좌표가 없는 정거장에만 넣는다")
     args = parser.parse_args()
 
     with SessionLocal() as session:
@@ -85,20 +109,11 @@ def main() -> None:
             return
         with open(args.file, encoding="utf-8") as f:
             data = json.load(f)
-        done, skipped = 0, 0
-        for name, value in data.items():
-            if name.startswith("_"):
-                continue  # 설명 칸
-            stop = _stop_by_name(session, name)
-            if stop.verification_status == "verified" and stop.latitude is not None and not args.overwrite_verified:
-                skipped += 1
-                print(f"건너뜀 (verified 유지): {name}")
-                continue
-            set_location(session, stop, float(value["lat"]), float(value["lng"]), value.get("status", "verified"), value.get("radius"))
-            done += 1
+        done, skipped = import_locations(session, data, args.overwrite_verified, args.missing_only)
         session.commit()
-        print(f"{done}개 정거장 좌표 등록, {skipped}개 건너뜀")
-
+        for name in skipped:
+            print(f"건너뜀 (기존 좌표 유지): {name}")
+        print(f"{done}개 정거장 좌표 등록, {len(skipped)}개 건너뜀")
 
 if __name__ == "__main__":
     main()

@@ -23,7 +23,26 @@
 
 층 순서대로 마이그레이션을 추가한다 — ⓪①(0001), ②(0002), ③과 계정·멱등(0003), ⑤ 공지·운영 결정(0004), ⑤ 스냅샷·outbox(0005). **④ 계산 층은 P5에서 추가한다.**
 
+## 한 번에 실행 — 서버.cmd (2026-09-29)
+
+루트 `서버.cmd`를 더블클릭한다. 순서대로 PostgreSQL(55432) 기동·마이그레이션·시드 → 좌표 없는 정거장에만 임시 좌표 → API(8000) → 참고 화면(3000) → 브라우저. API가 켜지면 회차 보충·상태 만료 같은 배경 작업도 같이 돈다.
+
+```powershell
+서버.cmd              # 켜기. 이미 켜진 것은 다시 띄우지 않는다
+서버.cmd status       # DB·API·화면이 켜져 있나
+서버.cmd stop         # 이 파일이 띄운 API·화면과 DB를 끈다
+서버.cmd start -NoWeb -NoBrowser   # API만
+```
+
+- 처음이면 `setup.cmd`를 먼저 돌린다 (`api\.venv`, `web\node_modules`가 없으면 멈추고 알려 준다).
+- 창은 숨겨서 띄운다. 로그는 `.tools\run\api.log`·`web.log`와 각 `.err.log`.
+- DB 시작 단계(`dev-db.ps1 start`)는 매번 마이그레이션·시드를 돈다. 둘 다 멱등이라 자료가 겹치지 않고, 등록한 좌표도 지우지 않는다.
+- 임시 좌표는 `--missing-only`로 넣는다 — 이미 좌표가 있는 정거장(현장 확인값·손으로 넣은 값)은 건너뛴다.
+- 화면은 참고 구현이다 (`CLAUDE.md` 7장). 디자인 준비 메모는 [md_frontend/05](md_frontend/05-design-notes.md).
+
 ## 로컬 실행 — Docker 없이
+
+아래 명령을 손으로 칠 때는 **API와 화면을 각각 다른 터미널**에서 띄운다. 한 터미널에 이어 붙이면 uvicorn이 터미널을 잡고 있어 다음 줄(`cd web`)이 돌지 않는다. `dev-db.ps1 start`는 기동만이 아니라 없으면 초기화, 매번 마이그레이션·시드까지 한다.
 
 ```powershell
 setup.cmd                                                          # 도구·패키지 설치
@@ -40,7 +59,7 @@ $env:PYTHONUTF8 = '1'
 .\.venv\Scripts\python.exe -m app.accounts revoke-tokens --username kim          # 강제 로그아웃 (발급된 토큰 전부 무효)
 .\.venv\Scripts\python.exe -m app.stops list                                    # 정거장 좌표·확인 상태
 .\.venv\Scripts\python.exe -m app.stops set --name 아산캠퍼스 --lat 36.7998 --lng 127.0745
-.\.venv\Scripts\python.exe -m app.stops import --file samples\stops-provisional.json   # 현장 확인 전 임시 좌표 7개
+.\.venv\Scripts\python.exe -m app.stops import --file samples\stops-provisional.json --missing-only   # 현장 확인 전 임시 좌표 7개 (좌표 있는 곳은 건너뜀)
 .\.venv\Scripts\python.exe -m app.survey gpx-demo --pattern cheonan_asan/general --out demo.gpx   # 가짜 트랙 (시험용)
 .\.venv\Scripts\python.exe -m app.survey import --file demo.gpx --pattern cheonan_asan/general --note demo
 .\.venv\Scripts\python.exe -m app.survey build-path --track <id>          # → 지도에 점선 경로
@@ -80,7 +99,7 @@ web/
 | 로그인 | `POST /api/v1/auth/login` → 토큰을 `Authorization: Bearer …` 헤더로. 학생 조회는 로그인 불필요 |
 | 변경 요청 | `Idempotency-Key` 헤더 필요 (로그인·시계 확인은 예외) |
 | 브라우저 키 | 카카오 JavaScript 키는 프론트 프로젝트의 `.env.local`에 `NEXT_PUBLIC_…`으로. 서버 비밀값과 섞지 않는다 |
-| 정거장 좌표 | **현재 0/22 등록.** 좌표 없는 정거장은 마커를 만들지 않는다. 등록은 아래 좌표 명령 참조 |
+| 정거장 좌표 | **임시 7/22** (`needs_interpretation`, 2026-09-29 `서버.cmd`가 넣음). 현장 확인 전이라 확정 좌표는 0개. 좌표 없는 정거장은 마커를 만들지 않는다 |
 | 정거장 카드 | `GET /api/v1/stops/{stop_id}/upcoming?route_id&service_date` — 계약은 [md/11 11장](md/11-boarding-candidates.md) |
 | 경로선 | `GET /api/v1/routes/{route_id}/path?service_date` — `verification`이 `none`이면 선을 긋지 않는다 ([md/10 5장](md/10-stop-discovery.md)) |
 
@@ -132,5 +151,5 @@ api/
   app/survey.py      GPX 적재·단순화·구간 분할·검증 CLI (04 조사 트랙) · samples/ 임시 좌표·데모
   alembic/versions/  0001 ⓪①층 · 0002 ②층 · 0003 ③층·계정·멱등 · 0004 ⑤층 공지·운영 결정 · 0005 ⑤층 스냅샷·outbox · 0006·0007 계정 열
   tests/
-scripts/dev-db.ps1   휴대용 PostgreSQL
+scripts/dev-db.ps1   휴대용 PostgreSQL · scripts/run-local.ps1 한 번에 실행 (서버.cmd)
 ```

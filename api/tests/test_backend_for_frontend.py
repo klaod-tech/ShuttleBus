@@ -15,7 +15,7 @@ from app.main import install_cors
 from app.models.observation import StaffAccount
 from app.models.reference import Stop
 from app.seed import route_id, seed, stop_id
-from app.stops import check_coordinates, set_location
+from app.stops import check_coordinates, import_locations, set_location
 from tests.test_collection import accounts  # noqa: F401
 from tests.test_operations import Admin
 
@@ -132,3 +132,26 @@ def test_reseed_keeps_registered_coordinates(db):
     db.flush()
     again = db.get(Stop, stop_id(CAMPUS))
     assert (again.latitude, again.longitude, again.verification_status, again.geofence_radius_m) == (36.7998, 127.0745, "verified", 60)
+
+
+def test_import_missing_only_keeps_existing_coordinates(db):
+    """실행 파일이 켤 때마다 임시 좌표를 불러도 이미 넣은 값(임시값 포함)은 그대로다."""
+    campus = db.get(Stop, stop_id(CAMPUS))
+    set_location(db, campus, 36.8, 127.07, "needs_interpretation", 50)
+    data = {"_설명": "무시", CAMPUS: {"lat": 36.7998, "lng": 127.0745, "status": "needs_interpretation"}, "천안역": {"lat": 36.8103, "lng": 127.1467, "status": "needs_interpretation"}}
+    done, skipped = import_locations(db, data, missing_only=True)
+    assert (done, skipped) == (1, [CAMPUS])
+    assert (campus.latitude, campus.longitude, campus.geofence_radius_m) == (36.8, 127.07, 50)
+    # 기본 동작은 그대로 — verified 아닌 좌표는 덮는다
+    done, skipped = import_locations(db, data)
+    assert (done, skipped) == (2, [])
+    assert campus.latitude == 36.7998
+
+
+def test_import_never_overwrites_verified_by_default(db):
+    campus = db.get(Stop, stop_id(CAMPUS))
+    set_location(db, campus, 36.8, 127.07, "verified")
+    data = {CAMPUS: {"lat": 36.7998, "lng": 127.0745, "status": "needs_interpretation"}}
+    assert import_locations(db, data) == (0, [CAMPUS])
+    assert import_locations(db, data, overwrite_verified=True) == (1, [])
+    assert campus.verification_status == "needs_interpretation"

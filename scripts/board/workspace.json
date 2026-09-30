@@ -2826,26 +2826,38 @@
       "title": "실행 안내 보완 — API·화면을 별도 터미널에서, dev-db.ps1 start의 초기화 동작 명시",
       "stage": "operations",
       "category": "문서·연구",
-      "status": "planned",
+      "status": "completed",
       "source": "md_frontend/PLAN-screen-fixes.md",
       "ref": "PLAN-screen-fixes 8절 3",
       "body": "같은 터미널에 이어 붙이면 API 실행이 막고 cd web이 api 하위를 찾는다. dev-db.ps1 start는 초기화·마이그레이션·시드도 수행하므로 기존 DB 상태를 먼저 확인.",
-      "evidence": "",
+      "evidence": "README.md '로컬 실행 — Docker 없이' 머리말(다른 터미널, dev-db start의 마이그레이션·시드), must_do 0절 서버.cmd 안내. 같은 내용을 서버.cmd 실제 실행으로 확인(SB-0101)",
       "priority": 1,
       "size": 1,
       "order": 10080,
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "README '로컬 실행' 머리말·must_do 0절 반영",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-09-30T00:35:33.091123+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-09-29T11:49:34.069365+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "2026-09-29 README '로컬 실행' 머리말과 must_do 0절에 반영(다른 터미널, dev-db start의 마이그레이션·시드). SB-0101과 함께 완료 처리 예정"
+        },
+        {
+          "at": "2026-09-30T00:35:33.091123+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "README '로컬 실행' 머리말·must_do 0절 반영"
         }
       ]
     },
@@ -3035,7 +3047,103 @@
       "priorityNote": "",
       "evidence": "다른 관리판(8774, sitting-posture-corrector) 저장 시도 재현 후 신원 확인으로 거절 확인, 포트 8784로 변경, P1 카드 6장 상시 운영 이동(P1 1/1), .claude/skills 진입 파일 2개, CLAUDE.md 8장 규칙, must_do 좌표 문구. 관리판 시험 26개 통과, work.py check PASS, md 링크 깨짐 0",
       "performedBy": ""
+    },
+    {
+      "id": "a56bc24c-a436-49f1-9300-1b424c49911c",
+      "title": "로컬 한 번에 실행 — 서버.cmd (DB·마이그레이션·시드·회차·임시 좌표·API·화면)",
+      "category": "인프라",
+      "stage": "operations",
+      "source": "README.md",
+      "body": "여러 터미널 명령을 순서대로 쳐야 하던 로컬 실행을 파일 하나로. 끄기 명령 포함. 실행 후 API 상태·정거장 응답을 실제로 확인한다.",
+      "status": "completed",
+      "agent": "klaod-tech_CL",
+      "result": "완료",
+      "updated": "2026-09-30T00:35:33.495990+00:00",
+      "log": [
+        {
+          "at": "2026-09-29T11:29:19.481936+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        },
+        {
+          "at": "2026-09-29T11:49:47.062698+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "근거 문서: README '한 번에 실행'"
+        },
+        {
+          "at": "2026-09-29T11:49:47.823145+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "2026-09-29 중단(사용자: 내일 이어서). 한 것: 서버.cmd·scripts/run-local.ps1, app.stops import --missing-only(+시험 2개), README '한 번에 실행'. 실제 확인: start로 기동·API/정거장/카드/경로/socket.io/화면 3000 응답, 재실행 시 전부 건너뜀, stop으로 API·화면·DB 종료. 남은 것: ① 서버 pytest 통과 개수 확인(두 번 돌려 종료코드 0이었으나 결과 줄을 못 읽음) ② md/CHANGELOG.md의 TESTS_PLACEHOLDER를 실제 결과로 교체 ③ work.py check ④ 카드 완료(--evidence) ⑤ 커밋은 사용자 확인 후"
+        },
+        {
+          "at": "2026-09-30T00:35:33.495990+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "완료"
+        }
+      ],
+      "priority": 2,
+      "size": 1,
+      "dependsOn": [
+        "SB-0095"
+      ],
+      "ref": "",
+      "number": "SB-0101",
+      "order": 1010,
+      "priorityNote": "",
+      "evidence": "2026-09-29 서버.cmd start 실제 기동: /healthz ok, 노선·정거장(임시 좌표 7개)·정거장 카드·경로·/socket.io·화면 3000 200. 재실행 시 좌표 0개 등록·재기동 없음. stop으로 API·화면·DB 종료 확인. 2026-09-30 서버 pytest 219 passed(import_locations 시험 2개 추가). work.py check PASS",
+      "performedBy": ""
+    },
+    {
+      "id": "7c995489-cc4d-483f-a03c-2b2964088431",
+      "title": "디자인 준비 메모 — 서버 작업 중 나온 화면 상태·문구 모음",
+      "category": "화면",
+      "stage": "operations",
+      "source": "md_frontend/05-design-notes.md",
+      "body": "사용자 요청(2026-09-29): 디자인은 따로 정하되 바로 만들 수 있게 서버 작업에서 나온 화면 요구를 md에 쌓아 둔다. md_frontend/05-design-notes.md",
+      "status": "in_progress",
+      "agent": "klaod-tech_CL",
+      "result": "05 문서는 작성 완료. 서버 작업이 새 화면 상태를 만들 때마다 표에 더하는 상시 카드로 진행 중 유지",
+      "updated": "2026-09-30T00:35:33.869280+00:00",
+      "log": [
+        {
+          "at": "2026-09-29T11:29:19.723470+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        },
+        {
+          "at": "2026-09-29T11:49:47.452133+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "근거 문서 연결"
+        },
+        {
+          "at": "2026-09-29T11:49:48.210552+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "2026-09-29 md_frontend/05-design-notes.md 작성, md_frontend/README 목록 추가. 남은 것: 서버 작업에서 새 화면 상태가 생길 때마다 표에 추가 — 상시 카드로 둘지 완료할지 결정"
+        },
+        {
+          "at": "2026-09-30T00:35:33.869280+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "05 문서는 작성 완료. 서버 작업이 새 화면 상태를 만들 때마다 표에 더하는 상시 카드로 진행 중 유지"
+        }
+      ],
+      "priority": 1,
+      "size": 1,
+      "dependsOn": [],
+      "ref": "",
+      "number": "SB-0102",
+      "order": 1020,
+      "priorityNote": "",
+      "evidence": "",
+      "performedBy": ""
     }
   ],
-  "nextNumber": 101
+  "nextNumber": 103
 }

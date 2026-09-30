@@ -12,6 +12,8 @@
 
 ### 띄우는 법
 
+루트 **`서버.cmd` 더블클릭**이면 아래 세 줄과 임시 좌표 적재까지 한 번에 하고 `http://localhost:3000`을 연다 (2026-09-29, README "한 번에 실행"). 손으로 띄울 때는 각 줄을 다른 터미널에서:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\dev-db.ps1 start     # DB
 cd api; $env:PYTHONUTF8='1'; .\.venv\Scripts\python.exe -m uvicorn app.main:asgi   # API :8000
