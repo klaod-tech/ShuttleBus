@@ -34,6 +34,7 @@ let selectedStage = '';
 let stageScope = true;
 let rawMode = false;
 let loading = false;
+let lastSnapshot = ''; // 마지막으로 그린 자료. 같으면 자동 갱신이 다시 그리지 않는다
 let editing = null;
 let pendingTask = '';
 let searchHits = null; // {query, paths:Set}
@@ -177,6 +178,11 @@ async function refresh(silent = false) {
   loading = true;
   try {
     const [documentList, data, journey] = await Promise.all([api('/api/documents'), api('/api/workspace'), api('/api/stages')]);
+    $('sync-time').textContent = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 갱신';
+    // 자동 갱신(silent)은 바뀐 게 없으면 다시 그리지 않는다 — 다시 그리면 보던 목록의 스크롤·열린 메뉴가 풀린다 (SB-0108)
+    const snapshot = data.version + '|' + documentList.documents.map((d) => d.path + ':' + d.modified).join(',') + '|' + JSON.stringify(journey.stages);
+    if (silent && snapshot === lastSnapshot) return;
+    lastSnapshot = snapshot;
     docs = documentList.documents;
     workspace = data.data;
     version = data.version;
@@ -192,8 +198,11 @@ async function refresh(silent = false) {
     }
     $('doc-count').textContent = docs.length;
     $('card-count').textContent = cards().length;
-    $('sync-time').textContent = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 갱신';
+    // 바뀐 게 있어 다시 그릴 때도 보던 위치는 지킨다
+    const scroll = { y: window.scrollY, kanban: $('kanban').scrollLeft };
     render();
+    window.scrollTo(0, scroll.y);
+    $('kanban').scrollLeft = scroll.kanban;
     if (!silent) notice('');
   } catch (error) {
     notice(error.message + ' · 관리판이 꺼졌다면 start-board를 다시 실행하세요.');

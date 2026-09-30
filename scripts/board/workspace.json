@@ -3408,7 +3408,54 @@
       "priorityNote": "",
       "evidence": "md/11 11장 '출발 시각 조건'·7장, FR-BC-29~32. api: timeutil.depart_cutoff, errors.check_depart_after, find_stop_upcoming·find_boarding_candidates의 cutoff, 두 응답에 depart_after_applied. 시험 6개(test_stop_upcoming 4, test_candidates 2). 서버 pytest 228 passed, web npm run typecheck 통과",
       "performedBy": ""
+    },
+    {
+      "id": "51188c7b-f906-4648-8318-6cbf92680672",
+      "title": "관리판: 15초 자동 갱신이 바뀐 게 없어도 화면을 다시 그려 스크롤이 튐",
+      "category": "인프라",
+      "stage": "operations",
+      "source": "md/PLAN-project-board.md",
+      "body": "사용자 보고(2026-09-30): 작업판 목록을 내려 보는 중 중간중간 위치가 돌아감. app.js의 15초 refresh(true)가 매번 render()로 innerHTML을 새로 만든다. 자료 버전·문서 목록이 같으면 다시 그리지 않고, 다시 그릴 때는 스크롤 위치를 지킨다.",
+      "status": "review",
+      "agent": "klaod-tech_CL",
+      "result": "수정 완료, 브라우저 확인 대기. app.js refresh(): 자동 갱신은 자료가 같으면 다시 그리지 않음, 다시 그릴 때 스크롤 유지. node --check·관리판 시험 26개 통과. 사용자가 새로고침 후 작업판 스크롤이 안 튀면 완료",
+      "updated": "2026-09-30T04:11:57.947196+00:00",
+      "log": [
+        {
+          "at": "2026-09-30T04:11:03.286116+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        },
+        {
+          "at": "2026-09-30T04:11:10.305667+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "관리판 결정·보완 문서"
+        },
+        {
+          "at": "2026-09-30T04:11:10.955768+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "착수"
+        },
+        {
+          "at": "2026-09-30T04:11:57.947196+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "수정 완료, 브라우저 확인 대기. app.js refresh(): 자동 갱신은 자료가 같으면 다시 그리지 않음, 다시 그릴 때 스크롤 유지. node --check·관리판 시험 26개 통과. 사용자가 새로고침 후 작업판 스크롤이 안 튀면 완료"
+        }
+      ],
+      "priority": 1,
+      "size": 1,
+      "dependsOn": [],
+      "ref": "",
+      "number": "SB-0108",
+      "order": 1080,
+      "priorityNote": "",
+      "evidence": "",
+      "performedBy": ""
     }
   ],
-  "nextNumber": 108
+  "nextNumber": 109
 }
