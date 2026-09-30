@@ -3254,7 +3254,36 @@
       "priorityNote": "",
       "evidence": "",
       "performedBy": ""
+    },
+    {
+      "id": "1024d6e8-ba10-4c4c-be1c-2c3dca822291",
+      "title": "담당자 전용 앱 만들기 — 학생 앱과 별도 프로젝트·주소·디자인 (입력자·관리자)",
+      "category": "화면",
+      "stage": "p3",
+      "source": "md_frontend/01-screens.md",
+      "body": "학생 앱과 다른 프로젝트로 만든다. 학생 앱에서 링크하지 않고 noindex. 같은 서버 API를 쓰며 출처를 CORS_ORIGINS에 추가. 앱 이름·폴더, 입력자·관리자를 한 앱 두 영역으로 둘지는 화면 담당이 정한다. 이 앱이 생겨야 입력자 SB-0037~0044, 관리자 SB-0045~0053을 그 안에 만든다. 화면 구현은 외부 담당·백엔드 완료 후(CLAUDE.md 7장).",
+      "status": "planned",
+      "agent": "klaod-tech_CL",
+      "result": "",
+      "updated": "2026-09-30T02:02:07.088083+00:00",
+      "log": [
+        {
+          "at": "2026-09-30T02:02:07.088083+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "작업 등록"
+        }
+      ],
+      "priority": 2,
+      "size": 1,
+      "dependsOn": [],
+      "ref": "01 '담당자 화면은 별도 앱' (2026-09-30)",
+      "number": "SB-0106",
+      "order": 1060,
+      "priorityNote": "",
+      "evidence": "",
+      "performedBy": ""
     }
   ],
-  "nextNumber": 106
+  "nextNumber": 107
 }
