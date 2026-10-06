@@ -130,6 +130,27 @@ def test_fr_rt_14_content_change_without_classification_change(client, db, trip1
     assert len(outbox(db, "candidates:changed")) == changed_before
 
 
+def test_fr_rt_16_arrival_freshness_expiry_is_published(client, db, trip1, set_now, trusted_settings):  # noqa: F811
+    """도착 확인의 신선도(arrived_freshness_seconds)가 지나면 내용이 같아도 분류가 바뀌므로 30초 작업이 알린다.
+
+    화면은 주기 재조회를 하지 않으므로(12 3장 '갱신 시점', 2026-10-06) 이 알림이 없으면 '도착 확인'이 계속 남는다.
+    """
+    kim = Collector(client, "kim")
+    kim.start(trip1["vehicle"])
+    clock = kim.clock(set_now, at(4))
+    kim.observe(trip1["stops"][0], "departed", at(5), clock=clock)
+    kim.observe(trip1["stops"][1], "arrived", at(10), clock=clock)
+    fresh = datetime(2026, 9, 14, 8, 10, 30, tzinfo=SEOUL)
+    refresh_states(db, (DAY,), fresh)
+    assert refresh_states(db, (DAY,), fresh) == 0  # 같은 시각에 다시 돌면 바뀐 것이 없다
+    changed_before = len(outbox(db, "candidates:changed"))
+    # 도착 관측 180초 경과 직후 — 그 사이 다른 시각 경계가 끼지 않도록 짧게 넘긴다
+    stale = datetime(2026, 9, 14, 8, 13, 5, tzinfo=SEOUL)
+    assert refresh_states(db, (DAY,), stale) >= 1
+    events = outbox(db, "candidates:changed")
+    assert len(events) > changed_before and events[-1].room == f"route:{ROUTE}"
+
+
 def test_cancellation_publishes_state_and_candidates(client, db, trip1, set_now):  # noqa: F811
     boss = Admin(client)
     state = trip_state(client, 1)

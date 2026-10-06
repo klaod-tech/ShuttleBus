@@ -740,15 +740,21 @@
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "공지 방식 변경(사용자 2026-10-06): 배너 → 앱 접속 시 팝업(오늘 하루 보지 않기 | 닫기), 켜져 있을 때 새 공지만 팝업, 날짜 변경은 새 접속처럼, 버스 카드에 공지 없음. md_frontend/01 '공지 표시 범위', md/12 3장 '공지', md/13 6장 운영 규칙(전날 또는 당일 게시). 화면 구현은 외부 담당",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-10-06T05:26:56.882827+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-10-06T05:26:56.882827+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "공지 방식 변경(사용자 2026-10-06): 배너 → 앱 접속 시 팝업(오늘 하루 보지 않기 | 닫기), 켜져 있을 때 새 공지만 팝업, 날짜 변경은 새 접속처럼, 버스 카드에 공지 없음. md_frontend/01 '공지 표시 범위', md/12 3장 '공지', md/13 6장 운영 규칙(전날 또는 당일 게시). 화면 구현은 외부 담당"
         }
       ]
     },
@@ -845,26 +851,38 @@
       "title": "정보 만료(신선도) 기준의 서버 전달 방식 합의",
       "stage": "p2",
       "category": "서버",
-      "status": "blocked",
-      "source": "md_frontend/04-review.md",
+      "status": "completed",
+      "source": "md/PLAN-refresh-and-notices.md",
       "ref": "04-review 중간 정보 만료",
       "body": "/state에는 server_time만 있고 정보별 유효 종료 시각이 없다. 후보에는 refresh_after_seconds. 응답 후 경과 시간으로 표시 갱신, ETA 경과 시 확인 중 전환, 복귀·재연결 시 재조회. 전달 방식은 연동 전 합의.",
-      "evidence": "",
+      "evidence": "md/12 3장 '갱신 시점'·2장, md/11 5장, md/01 설정 인덱스, md_frontend/02 '갱신'. 서버: realtime/state.py is_current가 후보 분류 서명도 비교 — 도착 신선도 만료가 candidates:changed로 나감. 시험 test_fr_rt_16_arrival_freshness_expiry_is_published(수정 전 실패 확인 → 수정 후 통과). 서버 pytest 229 passed",
       "priority": 2,
       "size": 1,
       "order": 3200,
       "dependsOn": [],
       "priorityNote": "",
       "performedBy": "",
-      "result": "",
+      "result": "사용자 결정(2026-10-06): D안 — 주기 재조회 없음, 갱신 시각 표시, 당겨서 새로고침, 앱 복귀·재연결·날짜 변경 시 재조회. valid_until 없음",
       "agent": "klaod-tech_CL",
-      "updated": "2026-09-29T06:48:07.148842+00:00",
+      "updated": "2026-10-06T05:26:56.507255+00:00",
       "log": [
         {
           "at": "2026-09-29T06:48:07.148842+00:00",
           "by": "klaod-tech_CL",
           "kind": "ai",
           "text": "기존 md 항목에서 등록 (관리판 3단계)"
+        },
+        {
+          "at": "2026-10-06T05:26:56.089499+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "결정 경위 문서"
+        },
+        {
+          "at": "2026-10-06T05:26:56.507255+00:00",
+          "by": "klaod-tech_CL",
+          "kind": "ai",
+          "text": "사용자 결정(2026-10-06): D안 — 주기 재조회 없음, 갱신 시각 표시, 당겨서 새로고침, 앱 복귀·재연결·날짜 변경 시 재조회. valid_until 없음"
         }
       ]
     },

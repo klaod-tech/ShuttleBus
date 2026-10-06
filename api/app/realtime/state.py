@@ -92,10 +92,16 @@ def compute_live_states(session: Session, trip_ids: list[uuid.UUID], now: dateti
 
 
 def is_current(snapshot: TripStateSnapshot | None, live: LiveState, trip: ScheduledTrip) -> bool:
+    """스냅샷이 지금 계산과 같은가. 내용뿐 아니라 후보 분류 서명도 본다.
+
+    도착 신선도(arrived_freshness_seconds)처럼 시간만 지나 분류가 바뀌고 내용은 같은 경우가 있다.
+    화면은 주기 재조회를 하지 않으므로(12 3장 '갱신 시점') 이때도 새 버전·candidates:changed가 나가야 한다 (FR-RT-16).
+    """
     return (
         snapshot is not None
         and snapshot.state_version == trip.state_version
         and content(snapshot.payload) == content(live.payload)
+        and snapshot.candidate_signature == live.signature
     )
 
 

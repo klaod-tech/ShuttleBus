@@ -258,7 +258,7 @@
 | `ADMIN_BOOTSTRAP_ID`, `ADMIN_BOOTSTRAP_PASSWORD` | 최초 관리자 1명을 사람 없이 만들지 | 일회용. 계정 생성 후 값을 지운다 | `06` |
 | `session_review_grace_seconds` | 기록을 검토해야 하는가 | 실측 후 확정 | `13` |
 | `max_skip_stops` | 한 번에 건너뛸 수 있는 방문 수 | 시험값 | `06` |
-| `refresh_after_seconds` | 후보를 다시 조회할 때인가 | 시험값 | `11` |
+| `refresh_after_seconds` | 응답에 싣는 참고값. **화면 주기 재조회에 쓰지 않는다** (2026-10-06, `12` 3장 '갱신 시점') | 시험값 | `11` |
 | `gps_report_interval_seconds` | 단말 전송 주기 | 시험값 | `07` |
 | `survey_tolerance_m`, `survey_max_speed_mps`, `survey_max_deviation_m`, `survey_stop_match_radius_m`, `survey_dwell_speed_mps` | GPX 적재의 단순화·이상치·검증 기준 | 시험값 (2026-09-22에 모듈 상수에서 이동). 실측 후 `07` 값으로 대체 | `PLAN-route-data` |
 | `survey_max_gap_seconds` | 이보다 긴 수신 공백이 있으면 경로를 만들지 않는다 | 시험값 30초 (2026-09-28). 공백을 직선으로 잇지 않기 위한 것 (`10` 5장) | `PLAN-route-data` |
